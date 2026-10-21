@@ -1,0 +1,48 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{{if .Title}}{{.Title}} - {{end}}{{.Brand}}</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="/">{{.Brand}}</a>
+    <nav class="nav">
+      <a href="/matches" {{if eq .Path "/matches"}}class="active"{{end}}>Matches</a>
+      <a href="/matches?status=archived">Archived</a>
+      {{if .User}}
+      <a href="/admin/matches/new" {{if eq .Path "/admin/matches/new"}}class="active"{{end}}>New match</a>
+      <a href="/admin/servers" {{if eq .Path "/admin/servers"}}class="active"{{end}}>Servers</a>
+      <a href="/admin/teams" {{if eq .Path "/admin/teams"}}class="active"{{end}}>Teams</a>
+      <a href="/admin/seasons" {{if eq .Path "/admin/seasons"}}class="active"{{end}}>Seasons</a>
+      <a href="/admin/ads" {{if eq .Path "/admin/ads"}}class="active"{{end}}>Advertising</a>
+      {{if .IsAdmin}}<a href="/admin/users" {{if eq .Path "/admin/users"}}class="active"{{end}}>Users</a>{{end}}
+      {{end}}
+    </nav>
+    <span class="spacer"></span>
+    {{if .User}}
+    <details class="dropdown">
+      <summary class="btn sm">{{.User.Name}}</summary>
+      <div class="dropdown-menu">
+        <div class="dropdown-header">{{.User.Role}} ({{.User.Source}})</div>
+        <form method="post" action="/logout"><button class="dropdown-item" type="submit">Log out</button></form>
+      </div>
+    </details>
+    {{else}}
+    <a class="btn sm primary" href="/login">Log in</a>
+    {{end}}
+  </header>
+  <main class="content">
+    {{if .Flash}}<div class="flash {{.Flash.Kind}}" role="status">{{.Flash.Message}}</div>{{end}}
+    {{template "content" .}}
+  </main>
+  <footer class="footer muted">{{.Brand}}{{if .Cfg.Version}} {{.Cfg.Version}}{{end}}</footer>
+</div>
+{{template "scripts" .}}
+</body>
+</html>{{end}}
+{{define "scripts"}}{{end}}
