@@ -29,6 +29,8 @@ type fakeMatchStore struct {
 	teams   []store.Team
 	seasons []store.Season
 
+	statsSeason int64
+
 	created   []store.MatchInput
 	updated   []store.MatchInput
 	updateErr error
@@ -122,6 +124,18 @@ func (f *fakeMatchStore) GetServer(_ context.Context, id int64) (*store.Server, 
 	return nil, store.ErrNotFound
 }
 func (f *fakeMatchStore) ListTeams(context.Context) ([]store.Team, error) { return f.teams, nil }
+func (f *fakeMatchStore) ListPlayerStats(_ context.Context, season int64, limit int) ([]store.PlayerStat, error) {
+	f.statsSeason = season
+	list := []store.PlayerStat{
+		{SteamID: "1", Name: "alice", Kills: 20, Assists: 4, Deaths: 10, Headshots: 5, Points: 22, Matches: 2},
+		{SteamID: "2", Name: "bob", Kills: 8, Deaths: 0, Matches: 1},
+	}
+	if limit > 0 && len(list) > limit {
+		list = list[:limit]
+	}
+	return list, nil
+}
+
 func (f *fakeMatchStore) GlobalStats(context.Context) (store.GlobalStats, error) {
 	return store.GlobalStats{Kills: 200, Headshots: 50, InProgress: 1, NotStarted: 2, Finished: 7, Servers: 3}, nil
 }
@@ -871,21 +885,40 @@ func TestGlobalStatsPages(t *testing.T) {
 
 	rec := e.do("GET", "/", "", nil)
 	body := rec.Body.String()
-	for _, want := range []string{"<h2>Statistics</h2>", ">200<", "50 (25.0%)", ">10<", `href="/stats"`} {
+	for _, want := range []string{"Top players", "alice", "bob", "2</td>", "25%", `href="/stats"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("home missing %q", want)
 		}
 	}
 
-	rec = e.do("GET", "/stats", "", nil)
+	rec = e.do("GET", "/stats?season=3", "", nil)
 	if rec.Code != 200 {
 		t.Fatalf("stats = %d", rec.Code)
 	}
 	body = rec.Body.String()
-	for _, want := range []string{"Number of kills", "25.0%", "Matches in progress", "Finished and archived matches", "Number of servers"} {
+	for _, want := range []string{"Global player statistics", "alice", "Entry kill", "stat-grid", "Headshot rate", "25.0%", "/static/table.js"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("stats page missing %q", want)
 		}
+	}
+	if e.st.statsSeason != 3 {
+		t.Errorf("season filter = %d", e.st.statsSeason)
+	}
+}
+
+func TestPlayerStatFigures(t *testing.T) {
+	p := store.PlayerStat{Kills: 157, Deaths: 123, Headshots: 80, Matches: 9}
+	if p.KD() != "1.28" || p.HSRate() != "50.96%" || p.MVP() != "17.44" {
+		t.Errorf("%s %s %s", p.KD(), p.HSRate(), p.MVP())
+	}
+	if (store.PlayerStat{Kills: 8}).KD() != "8" {
+		t.Error("no deaths gives the kill count")
+	}
+	if (store.PlayerStat{}).HSRate() != "0%" || (store.PlayerStat{}).MVP() != "0" {
+		t.Error("empty player")
+	}
+	if (store.PlayerStat{Kills: 140, Deaths: 70}).KD() != "2" {
+		t.Error("whole numbers have no decimals")
 	}
 }
 

@@ -281,3 +281,25 @@ form:has(input[name="auto_start"]:checked) .autostart-field { display: flex; }
 .table th.label { width: 260px; text-transform: none; font-size: 14px; color: var(--text); font-weight: 500; }
 .stats-card { max-width: 420px; }
 .stats-card .table th { text-transform: none; font-size: 14px; color: var(--muted); font-weight: 500; }
+
+/* Statistics. */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;
+}
+.stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.table-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+label.inline { flex-direction: row; align-items: center; gap: 8px; color: var(--muted); }
+label.inline select, label.inline input { padding: 6px 9px; }
+.table-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pager-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+
+table.sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
+table.sortable th:hover { color: var(--text); }
+table.sortable th[aria-sort="ascending"]::after { content: " \25B2"; font-size: 9px; color: var(--accent); }
+table.sortable th[aria-sort="descending"]::after { content: " \25BC"; font-size: 9px; color: var(--accent); }
+table.sortable tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+table.sortable tbody tr:hover { background: rgba(255, 255, 255, 0.04); }

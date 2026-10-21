@@ -31,7 +31,7 @@ func TestPlayersRoundsAndCounts(t *testing.T) {
 		t.Errorf("order by points: %+v", all[0])
 	}
 	one, _ := s.ListPlayers(ctx, id, maps[0].ID)
-	if len(one) != 1 || one[0].Clutch1v5 != 1 || one[0].Bombs != 2 || one[0].Kills != 10 {
+	if len(one) != 1 || one[0].Rounds5K != 1 || one[0].Bombs != 2 || one[0].Kills != 10 {
 		t.Errorf("map filter: %+v", one)
 	}
 
@@ -96,4 +96,60 @@ func TestGlobalStats(t *testing.T) {
 	if g.HeadshotPercent() != "31.2%" {
 		t.Errorf("percent = %s", g.HeadshotPercent())
 	}
+}
+
+func TestListPlayerStats(t *testing.T) {
+	s := matchesTestStore(t)
+	ctx := context.Background()
+
+	a := createWithMaps(t, s, "de_dust2")
+	b := createWithMaps(t, s, "de_mirage")
+	mapA, _ := s.ListMaps(ctx, a)
+	mapB, _ := s.ListMaps(ctx, b)
+	mustExec(t, s, "INSERT INTO seasons (name, created_at, updated_at) VALUES ('s1', NOW(), NOW())")
+	mustExec(t, s, "UPDATE matchs SET season_id = (SELECT MAX(id) FROM seasons) WHERE id = ?", a)
+
+	ins := `INSERT INTO players (match_id, map_id, steamid, pseudo, team, nb_kill, assist, death, hs, firstkill, tk, bombe, defuse, point, nb1, nb2, nb3, nb4, nb5, nb2kill, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 2, 1, 1, 1, ?, ?, ?, 0, 0, 1, 3, NOW(), NOW())`
+	mustExec(t, s, ins, a, mapA[0].ID, "7656", "old name", "a", 10, 5, 4, 12, 2, 1)
+	mustExec(t, s, ins, b, mapB[0].ID, "7656", "new name", "b", 6, 5, 2, 8, 0, 3)
+	mustExec(t, s, ins, a, mapA[0].ID, "9999", "bob", "a", 30, 10, 9, 33, 0, 0)
+	mustExec(t, s, ins, a, mapA[0].ID, "5555", "watcher", "other", 99, 0, 0, 0, 0, 0)
+
+	all, err := s.ListPlayerStats(ctx, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("players = %+v (spectators must be left out)", all)
+	}
+	if all[0].SteamID != "9999" || all[0].Kills != 30 {
+		t.Errorf("most kills first: %+v", all[0])
+	}
+	p := all[1]
+	if p.Name != "new name" || p.Kills != 16 || p.Deaths != 10 || p.Headshots != 6 || p.Matches != 2 || p.Points != 20 || p.FirstKills != 4 {
+		t.Errorf("summed player: %+v", p)
+	}
+	// nb1 + 2*nb2 + 5*nb5 per row: (2 + 2*1 + 5) + (0 + 2*3 + 5)
+	if p.Clutch != 9+11 {
+		t.Errorf("clutch = %d, want 20", p.Clutch)
+	}
+
+	season, err := s.ListPlayerStats(ctx, 0+mustInt(t, s, "SELECT MAX(id) FROM seasons"), 0)
+	if err != nil || len(season) != 2 || season[1].Kills != 10 {
+		t.Errorf("season filter: %+v %v", season, err)
+	}
+	top, err := s.ListPlayerStats(ctx, 0, 1)
+	if err != nil || len(top) != 1 || top[0].SteamID != "9999" {
+		t.Errorf("limit: %+v %v", top, err)
+	}
+}
+
+func mustInt(t *testing.T, s *Store, q string) int64 {
+	t.Helper()
+	var n int64
+	if err := s.db.QueryRow(q).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
 }

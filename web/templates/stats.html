@@ -1,40 +1,106 @@
 {{define "content"}}
-{{with .Data.Stats}}
 <div class="page-head">
   <h1>Statistics</h1>
   <span class="spacer"></span>
   <a class="btn sm" href="/matches">Matches</a>
 </div>
+
 <div class="stack">
-  <div class="card">
-    <h2>Players</h2>
-    <table class="table">
-      <tbody>
-        <tr><th class="label">Number of kills</th><td>{{.Kills}}</td></tr>
-        <tr><th class="label">Number of headshots</th><td>{{.Headshots}}</td></tr>
-        <tr><th class="label">Headshot rate</th><td>{{.HeadshotPercent}}</td></tr>
-      </tbody>
-    </table>
+  {{with .Data.Stats}}
+  <div class="stat-grid">
+    <div class="stat"><div class="stat-value">{{.Kills}}</div><div class="stat-label">Kills</div></div>
+    <div class="stat"><div class="stat-value">{{.Headshots}}</div><div class="stat-label">Headshots</div></div>
+    <div class="stat"><div class="stat-value">{{.HeadshotPercent}}</div><div class="stat-label">Headshot rate</div></div>
+    <div class="stat"><div class="stat-value">{{.Matches}}</div><div class="stat-label">Matches</div></div>
+    <div class="stat"><div class="stat-value">{{.InProgress}}</div><div class="stat-label">In progress</div></div>
+    <div class="stat"><div class="stat-value">{{.NotStarted}}</div><div class="stat-label">Not started</div></div>
+    <div class="stat"><div class="stat-value">{{.Finished}}</div><div class="stat-label">Finished and archived</div></div>
+    <div class="stat"><div class="stat-value">{{.Servers}}</div><div class="stat-label">Servers</div></div>
   </div>
-  <div class="card">
-    <h2>Matches</h2>
-    <table class="table">
-      <tbody>
-        <tr><th class="label">Matches in progress</th><td>{{.InProgress}}</td></tr>
-        <tr><th class="label">Matches not started</th><td>{{.NotStarted}}</td></tr>
-        <tr><th class="label">Finished and archived matches</th><td>{{.Finished}}</td></tr>
-        <tr><th class="label">Total matches</th><td>{{.Matches}}</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="card">
-    <h2>Servers</h2>
-    <table class="table">
-      <tbody>
-        <tr><th class="label">Number of servers</th><td>{{.Servers}}</td></tr>
-      </tbody>
-    </table>
+  {{end}}
+
+  <div class="card" data-table>
+    <div class="page-head">
+      <h2>Global player statistics</h2>
+      <span class="spacer"></span>
+      <form class="toolbar" method="get" action="/stats">
+        <label>Season
+          <select name="season" data-submit-on-change>
+            <option value="">All seasons</option>
+            {{range .Data.Seasons}}<option value="{{.ID}}"{{if eq .ID $.Data.Season}} selected{{end}}>{{.Name}}</option>{{end}}
+          </select>
+        </label>
+        <noscript><button class="btn" type="submit">Filter</button></noscript>
+      </form>
+    </div>
+
+    <div class="table-tools">
+      <label class="inline">Show
+        <select data-page-size>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="0">All</option>
+        </select>
+        records
+      </label>
+      <label class="inline">Search
+        <input type="search" data-search placeholder="Player" autocomplete="off">
+      </label>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table sortable" data-sortable>
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th class="num" title="Kills">K</th>
+            <th class="num" title="Assists">A</th>
+            <th class="num" title="Deaths">D</th>
+            <th class="num" title="Kills per death">K/D</th>
+            <th class="num" title="Headshots">HS</th>
+            <th class="num" title="Headshot rate">HS rate</th>
+            <th class="num" title="Entry kills">Entry kill</th>
+            <th class="num" title="Team kills">TK</th>
+            <th class="num" title="Bombs planted">Bomb</th>
+            <th class="num" title="Defuses">Defuse</th>
+            <th class="num">Points</th>
+            <th class="num" title="Kills per match">MVP</th>
+            <th class="num" title="Clutches won, weighted by opponents">Clutch</th>
+            <th class="num" title="Maps played">Matches</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Data.Players}}
+          <tr>
+            <td>{{.Name}}</td>
+            <td class="num">{{.Kills}}</td>
+            <td class="num">{{.Assists}}</td>
+            <td class="num">{{.Deaths}}</td>
+            <td class="num">{{.KD}}</td>
+            <td class="num">{{.Headshots}}</td>
+            <td class="num">{{.HSRate}}</td>
+            <td class="num">{{.FirstKills}}</td>
+            <td class="num">{{.TeamKills}}</td>
+            <td class="num">{{.Bombs}}</td>
+            <td class="num">{{.Defuses}}</td>
+            <td class="num">{{.Points}}</td>
+            <td class="num">{{.MVP}}</td>
+            <td class="num">{{.Clutch}}</td>
+            <td class="num">{{.Matches}}</td>
+          </tr>
+          {{else}}
+          <tr><td colspan="15" class="muted">No player statistics yet.</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-footer">
+      <span class="muted" data-info></span>
+      <div class="pager-buttons" data-pager></div>
+    </div>
   </div>
 </div>
 {{end}}
-{{end}}
+{{define "scripts"}}<script src="/static/table.js" defer></script>{{end}}

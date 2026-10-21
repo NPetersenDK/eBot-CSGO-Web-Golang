@@ -6,6 +6,8 @@ package store
 import (
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
 	"time"
 )
 
@@ -415,6 +417,53 @@ type UserInput struct {
 	Password     string
 	IsActive     bool
 	IsSuperAdmin bool
+}
+
+// PlayerStat is one player summed over all their maps, keyed on Steam ID.
+type PlayerStat struct {
+	SteamID    string
+	Name       string
+	Kills      int64
+	Assists    int64
+	Deaths     int64
+	Headshots  int64
+	FirstKills int64
+	TeamKills  int64
+	Bombs      int64
+	Defuses    int64
+	Points     int64
+	// Clutch weights a won 1vN by N, as the PHP panel does.
+	Clutch int64
+	// Matches counts player rows, so a player counts once per map played.
+	Matches int64
+}
+
+func round2(v float64) float64 { return math.Round(v*100) / 100 }
+
+func trimmed(v float64) string { return strconv.FormatFloat(round2(v), 'f', -1, 64) }
+
+// KD is kills per death. With no deaths it is the kill count.
+func (p PlayerStat) KD() string {
+	if p.Deaths == 0 {
+		return strconv.FormatInt(p.Kills, 10)
+	}
+	return trimmed(float64(p.Kills) / float64(p.Deaths))
+}
+
+// HSRate is the headshot share of kills in percent.
+func (p PlayerStat) HSRate() string {
+	if p.Kills == 0 {
+		return "0%"
+	}
+	return trimmed(float64(p.Headshots)*100/float64(p.Kills)) + "%"
+}
+
+// MVP is kills per map played, the figure the PHP panel shows under that name.
+func (p PlayerStat) MVP() string {
+	if p.Matches == 0 {
+		return "0"
+	}
+	return trimmed(float64(p.Kills) / float64(p.Matches))
 }
 
 // GlobalStats are the public numbers on the statistics page.

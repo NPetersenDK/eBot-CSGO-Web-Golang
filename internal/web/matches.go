@@ -18,6 +18,7 @@ import (
 const (
 	matchesPerPage = 12
 	homeMatches    = 10
+	homePlayers    = 10
 )
 
 // matchStore is the part of store.Store the match pages use.
@@ -47,6 +48,7 @@ type matchStore interface {
 	ListTeams(ctx context.Context) ([]store.Team, error)
 	ListSeasons(ctx context.Context) ([]store.Season, error)
 	GlobalStats(ctx context.Context) (store.GlobalStats, error)
+	ListPlayerStats(ctx context.Context, seasonID int64, limit int) ([]store.PlayerStat, error)
 }
 
 // commandSender delivers a live command to the bot.
@@ -230,8 +232,9 @@ func isAdminRequest(r *http.Request) bool {
 
 type homePage struct {
 	Rows []matchRow
-	// Stats is nil when the numbers could not be read. The page still renders.
-	Stats *store.GlobalStats
+	// Players is the top of the player table. It is empty when the numbers
+	// could not be read, and the page still renders.
+	Players []store.PlayerStat
 }
 
 func (homePage) Title() string { return "" }
@@ -243,25 +246,42 @@ func (h *matchHandlers) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page := homePage{Rows: h.rows(ms, false)}
-	if g, err := h.st.GlobalStats(r.Context()); err != nil {
-		h.app.Log.Error("global stats", "err", err)
+	if ps, err := h.st.ListPlayerStats(r.Context(), 0, homePlayers); err != nil {
+		h.app.Log.Error("player stats", "err", err)
 	} else {
-		page.Stats = &g
+		page.Players = ps
 	}
 	h.app.Render(w, r, "home", page)
 }
 
-type statsPage struct{ Stats store.GlobalStats }
+type statsPage struct {
+	Stats   store.GlobalStats
+	Players []store.PlayerStat
+	Seasons []store.Season
+	Season  int64
+}
 
 func (statsPage) Title() string { return "Statistics" }
 
 func (h *matchHandlers) stats(w http.ResponseWriter, r *http.Request) {
-	g, err := h.st.GlobalStats(r.Context())
+	ctx := r.Context()
+	season := positiveInt(r.URL.Query().Get("season"))
+	g, err := h.st.GlobalStats(ctx)
 	if err != nil {
 		h.app.ServerError(w, r, err)
 		return
 	}
-	h.app.Render(w, r, "stats", statsPage{Stats: g})
+	players, err := h.st.ListPlayerStats(ctx, season, 0)
+	if err != nil {
+		h.app.ServerError(w, r, err)
+		return
+	}
+	seasons, err := h.st.ListSeasons(ctx)
+	if err != nil {
+		h.app.ServerError(w, r, err)
+		return
+	}
+	h.app.Render(w, r, "stats", statsPage{Stats: g, Players: players, Seasons: seasons, Season: season})
 }
 
 type matchListPage struct {

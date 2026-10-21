@@ -38,17 +38,25 @@
       </tbody>
     </table>
   </div>
-  {{with .Data.Stats}}
-  <div class="card stats-card">
-    <h2>Statistics</h2>
-    <table class="table compact">
-      <tbody>
-        <tr><th>Kills</th><td class="num">{{.Kills}}</td></tr>
-        <tr><th>Headshots</th><td class="num">{{.Headshots}} ({{.HeadshotPercent}})</td></tr>
-        <tr><th>Matches</th><td class="num">{{.Matches}}</td></tr>
-        <tr><th>In progress</th><td class="num">{{.InProgress}}</td></tr>
-      </tbody>
-    </table>
+  {{if .Data.Players}}
+  <div class="card">
+    <div class="page-head">
+      <h2>Top players</h2>
+      <span class="spacer"></span>
+      <span class="muted">By kills, all matches</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table compact">
+        <thead>
+          <tr><th>Player</th><th class="num">K</th><th class="num">D</th><th class="num">K/D</th><th class="num">HS rate</th><th class="num">Points</th></tr>
+        </thead>
+        <tbody>
+          {{range .Data.Players}}
+          <tr><td>{{.Name}}</td><td class="num">{{.Kills}}</td><td class="num">{{.Deaths}}</td><td class="num">{{.KD}}</td><td class="num">{{.HSRate}}</td><td class="num">{{.Points}}</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
     <div class="actions"><a class="btn sm primary" href="/stats">All statistics</a></div>
   </div>
   {{end}}

@@ -209,8 +209,8 @@ func (s *Store) ListPlayers(ctx context.Context, matchID, mapID int64) ([]Player
 		if err := rows.Scan(&p.ID, &p.MatchID, &p.MapID, &p.Key, &p.Team, &p.IP, &p.SteamID,
 			&p.FirstSide, &p.CurrentSide, &p.Nickname,
 			&p.Kills, &p.Assists, &p.Deaths, &p.Points, &p.Headshots, &p.Defuses, &p.Bombs, &p.TeamKills,
-			&p.Rounds1K, &p.Rounds2K, &p.Rounds3K, &p.Rounds4K, &p.Rounds5K,
 			&p.Clutch1v1, &p.Clutch1v2, &p.Clutch1v3, &p.Clutch1v4, &p.Clutch1v5,
+			&p.Rounds1K, &p.Rounds2K, &p.Rounds3K, &p.Rounds4K, &p.Rounds5K,
 			&p.FirstKills, &p.PlusKills); err != nil {
 			return nil, err
 		}
