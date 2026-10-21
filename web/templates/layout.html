@@ -26,10 +26,22 @@
     <span class="spacer"></span>
     {{if .User}}
     <details class="dropdown">
-      <summary class="btn sm">{{.User.Name}}</summary>
+      <summary class="btn user-profile-button">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.2 18.6a7 7 0 0 1 11.6 0"/></svg>
+        Hi {{.User.Name}}
+        <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
       <div class="dropdown-menu">
-        <div class="dropdown-header">{{.User.Role}} ({{.User.Source}})</div>
-        <form method="post" action="/logout"><button class="dropdown-item" type="submit">Log out</button></form>
+        <div class="dropdown-header">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.5"/><path d="M8 17c.8-2 2.2-3 4-3s3.2 1 4 3"/></svg>
+          {{.User.Role}}
+        </div>
+        <form method="post" action="/logout">
+          <button class="dropdown-item" type="submit">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+            Log out
+          </button>
+        </form>
       </div>
     </details>
     {{else}}
@@ -42,6 +54,7 @@
   </main>
   <footer class="footer muted">{{.Brand}}{{if .Cfg.Version}} {{.Cfg.Version}}{{end}}</footer>
 </div>
+<script src="/static/menu.js" defer></script>
 {{template "scripts" .}}
 </body>
 </html>{{end}}

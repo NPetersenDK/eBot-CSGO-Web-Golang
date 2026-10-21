@@ -225,3 +225,28 @@ form:has(input[name="auto_start"]:checked) .autostart-field { display: flex; }
 /* Long text gets the full row. */
 .form-grid > label:has(textarea) { grid-column: 1 / -1; }
 .form-grid textarea { width: 100%; min-height: 160px; resize: vertical; }
+
+/* User menu: a pill that opens a small panel. */
+.icon {
+  width: 1em; height: 1em; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.user-profile-button {
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  padding: 7px 14px; border-radius: 20px;
+  background: linear-gradient(135deg, #5c9ce6 0%, #4a90e2 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+  color: #fff; font-weight: 500;
+}
+.user-profile-button:hover { background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%); border-color: rgba(255, 255, 255, 0.15); }
+.user-profile-button .icon { font-size: 16px; }
+.user-profile-button .caret { font-size: 13px; }
+.dropdown-menu { border-color: rgba(74, 144, 226, 0.3); min-width: 220px; }
+.dropdown-header { display: flex; align-items: center; gap: 8px; }
+.dropdown-header .icon { font-size: 14px; }
+.dropdown-item { border: 1px solid transparent; }
+.dropdown-item .icon { font-size: 15px; }
+.dropdown-item:hover { background: rgba(74, 144, 226, 0.2); }
+.dropdown-item:focus-visible { outline: none; border-color: #fff; background: rgba(74, 144, 226, 0.2); }
+.dropdown-menu form { margin: 0; }
