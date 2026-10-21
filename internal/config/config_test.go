@@ -87,3 +87,17 @@ func TestIsCurrentMap(t *testing.T) {
 		}
 	}
 }
+
+func TestMatchDefaultsFromEnv(t *testing.T) {
+	c, err := Load(lookup(map[string]string{
+		"EBOT_SESSION_KEY":      key32,
+		"EBOT_DEFAULT_PASSWORD": "esb",
+		"EBOT_DEFAULT_RULES":    "gamemode_competitive",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Defaults.Password != "esb" || c.Defaults.Rules != "gamemode_competitive" {
+		t.Fatalf("defaults = %+v", c.Defaults)
+	}
+}
