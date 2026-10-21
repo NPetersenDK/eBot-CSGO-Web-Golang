@@ -1,12 +1,13 @@
 {{define "content"}}
-<div data-live="matches" data-live-reload>
-  <div class="page-head">
-    <h1>Matches in progress and upcoming matches</h1>
-    <span class="spacer"></span>
-    <span class="badge muted" data-live-state>Live updates: connecting</span>
-    <a class="btn sm" href="/matches">All matches</a>
-  </div>
-  <div class="card table-wrap">
+<div class="stack" data-live="matches" data-live-reload>
+  <div class="card">
+    <div class="page-head">
+      <h2>Matches in progress and upcoming matches</h2>
+      <span class="spacer"></span>
+      <span class="badge muted" data-live-state>Live updates: connecting</span>
+      <a class="btn sm" href="/matches">All matches</a>
+    </div>
+    <div class="table-wrap">
     <table class="table">
       <thead>
         <tr>
@@ -37,6 +38,7 @@
         {{end}}
       </tbody>
     </table>
+    </div>
   </div>
   {{if .Data.Players}}
   <div class="card">
@@ -48,11 +50,11 @@
     <div class="table-wrap">
       <table class="table compact">
         <thead>
-          <tr><th>Player</th><th class="num">K</th><th class="num">D</th><th class="num">K/D</th><th class="num">HS rate</th><th class="num">Points</th></tr>
+          <tr><th>Player</th><th class="num">Matches</th><th class="num">Kills/match</th><th class="num">K</th><th class="num">D</th><th class="num">K/D</th><th class="num">HS rate</th><th class="num">Points</th></tr>
         </thead>
         <tbody>
           {{range .Data.Players}}
-          <tr><td>{{if .SteamID}}<a href="/stats/players/{{.SteamID}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td><td class="num">{{.Kills}}</td><td class="num">{{.Deaths}}</td><td class="num">{{.KD}}</td><td class="num">{{.HSRate}}</td><td class="num">{{.Points}}</td></tr>
+          <tr><td>{{if .SteamID}}<a href="/stats/players/{{.SteamID}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td><td class="num">{{.Matches}}</td><td class="num">{{.MVP}}</td><td class="num">{{.Kills}}</td><td class="num">{{.Deaths}}</td><td class="num">{{.KD}}</td><td class="num">{{.HSRate}}</td><td class="num">{{.Points}}</td></tr>
           {{end}}
         </tbody>
       </table>

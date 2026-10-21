@@ -1032,3 +1032,30 @@ func TestCurrentMapBadge(t *testing.T) {
 		t.Fatalf("a finished match shows the badge %d times", n)
 	}
 }
+
+func TestHomeLayout(t *testing.T) {
+	e := newMatchTestEnv(t)
+	body := e.do("GET", "/", "", nil).Body.String()
+
+	for _, want := range []string{
+		`class="stack" data-live="matches"`,
+		"<h2>Matches in progress and upcoming matches</h2>",
+		"<h2>Top players</h2>",
+		"<th class=\"num\">Matches</th><th class=\"num\">Kills/match</th>",
+		"data-live-state",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("home missing %q", want)
+		}
+	}
+	if strings.Contains(body, "<h1>Matches in progress") {
+		t.Error("the matches title belongs in the card, not above it")
+	}
+	// alice: 20 kills over 2 maps.
+	if !strings.Contains(body, `<td class="num">2</td><td class="num">10</td><td class="num">20</td>`) {
+		t.Error("matches and kills per match must sit next to each other, before the kill count")
+	}
+	if open, closed := strings.Count(body, "<div"), strings.Count(body, "</div>"); open != closed {
+		t.Errorf("unbalanced divs: %d opened, %d closed", open, closed)
+	}
+}
