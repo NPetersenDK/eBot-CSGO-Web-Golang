@@ -413,6 +413,28 @@ func TestParseMatchForm(t *testing.T) {
 		}
 	})
 
+	t.Run("current server map", func(t *testing.T) {
+		v := validMatchForm()
+		v.Set("map", "CurrentMap")
+		in, errs := parseMatchWith(t, e, v, nil)
+		if len(errs) != 0 || in.Maps[0].Name != "CurrentMap" {
+			t.Fatalf("errs=%v maps=%v", errs, in.Maps)
+		}
+	})
+
+	t.Run("renamed current map is accepted on edit only", func(t *testing.T) {
+		v := validMatchForm()
+		v.Set("map", "CurrentMap-workshop_cool")
+		if _, errs := parseMatchWith(t, e, v, nil); errs["map"] == "" {
+			t.Fatal("a renamed server map must not be accepted on create")
+		}
+		existing := &store.Match{CurrentMap: &store.Map{Name: "CurrentMap-workshop_cool"}}
+		in, errs := parseMatchWith(t, e, v, existing)
+		if len(errs) != 0 || in.Maps[0].Name != "CurrentMap-workshop_cool" {
+			t.Fatalf("errs=%v maps=%v", errs, in.Maps)
+		}
+	})
+
 	t.Run("autostart without date is off", func(t *testing.T) {
 		v := validMatchForm()
 		v.Set("auto_start", "1")
@@ -786,4 +808,35 @@ func TestMatchScoreUpdate(t *testing.T) {
 	if len(e.st.calls) != 0 {
 		t.Fatalf("invalid, foreign or running-match scores must be refused: %v", e.st.calls)
 	}
+}
+
+func TestMapChoicesAndLabels(t *testing.T) {
+	got := mapChoices([]string{"de_dust2"}, nil)
+	if !slices.Equal(got, []string{"de_dust2", "tba", "CurrentMap"}) {
+		t.Errorf("choices = %v", got)
+	}
+	got = mapChoices([]string{"de_dust2"}, &store.Match{CurrentMap: &store.Map{Name: "de_old"}})
+	if got[len(got)-1] != "de_old" {
+		t.Errorf("the stored map must stay selectable: %v", got)
+	}
+	label := templateFunc(t, "mapLabel").(func(string) string)
+	for name, want := range map[string]string{
+		"de_dust2":                 "de_dust2",
+		"tba":                      "Choose by map veto",
+		"CurrentMap":               "Current server map (no map change)",
+		"CurrentMap-workshop_cool": "workshop_cool (server map)",
+	} {
+		if got := label(name); got != want {
+			t.Errorf("mapLabel(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func templateFunc(t *testing.T, name string) any {
+	t.Helper()
+	fn, ok := extraFuncs[name]
+	if !ok {
+		t.Fatalf("template function %s is not registered", name)
+	}
+	return fn
 }

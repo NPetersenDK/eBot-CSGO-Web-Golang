@@ -160,6 +160,18 @@ EBOT_MAPS=de_dust2,de_mirage,de_inferno
 EBOT_RULES=rules,rules_lan
 ```
 
+Two entries are always added after the configured maps:
+
+- `tba`, shown as "Choose by map veto". The map is picked in game.
+- `CurrentMap`, shown as "Current server map (no map change)". The bot does not
+  run `changelevel` and stays on the map the game server is already on. Use it
+  for workshop maps. Once the bot knows the real map it renames the entry to
+  `CurrentMap-<map>`, and the panel shows that as `<map> (server map)`.
+
+A workshop map can also be listed in `EBOT_MAPS` by name. The bot loads it with
+`host_workshop_map` when the name has an ID under `[WORKSHOP IDs]` in its
+`config.ini`.
+
 ## API keys
 
 Set `EBOT_API_KEYS` to one or more comma separated keys. The `/api` routes are

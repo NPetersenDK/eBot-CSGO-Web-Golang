@@ -106,7 +106,7 @@
       <div class="kv"><span>Max rounds</span><b>MR{{.Match.MaxRound}}</b></div>
       {{if $.IsAdmin}}<div class="kv"><span>Password</span><b class="mono">{{.Match.ConfigPassword}}</b></div>{{end}}
       <div class="kv"><span>Series</span><b>{{.Match.MapSelectionMode}}</b></div>
-      <div class="kv"><span>Map</span><b>{{if .Match.CurrentMap}}{{.Match.CurrentMap.Name}}{{end}}</b></div>
+      <div class="kv"><span>Map</span><b>{{if .Match.CurrentMap}}{{mapLabel .Match.CurrentMap.Name}}{{end}}</b></div>
       <div class="kv"><span>Active</span><b>{{if .Match.Enable}}Yes{{else}}No{{end}}</b></div>
       <div class="kv"><span>Play all rounds</span><b>{{if .Match.ConfigFullScore}}Yes{{else}}No{{end}}</b></div>
       <div class="kv"><span>Streamer ready</span><b>{{if .Match.ConfigStreamer}}Yes{{else}}No{{end}}</b></div>
@@ -126,7 +126,7 @@
   {{range .Maps}}
   <div class="card">
     <div class="page-head">
-      <h2>{{.Map.Name}}</h2>
+      <h2>{{mapLabel .Map.Name}}</h2>
       {{if .Current}}<span class="badge accent">Current map</span>{{end}}
       <span class="badge muted">{{statusLabel .Map.Status}}</span>
       <span class="spacer"></span>

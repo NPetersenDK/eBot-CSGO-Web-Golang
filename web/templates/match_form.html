@@ -123,7 +123,7 @@
     </label>
     <label>Map
       <select name="map">
-        {{range .MapChoices}}<option value="{{.}}"{{if eq . $.Data.Form.Map}} selected{{end}}>{{if eq . "tba"}}Choose by map veto{{else}}{{.}}{{end}}</option>{{end}}
+        {{range .MapChoices}}<option value="{{.}}"{{if eq . $.Data.Form.Map}} selected{{end}}>{{mapLabel .}}</option>{{end}}
       </select>
       <span class="hint">For BO3 the bot creates the other maps itself.</span>
       {{with index $.Data.Errors "map"}}<span class="field-error">{{.}}</span>{{end}}

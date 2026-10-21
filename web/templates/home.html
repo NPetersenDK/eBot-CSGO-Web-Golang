@@ -27,7 +27,7 @@
           <td>{{if .TeamAFlag}}<span class="muted mono">{{.TeamAFlag}}</span> {{end}}{{.TeamAName}}</td>
           <td class="num"><strong>{{.ScoreA}} - {{.ScoreB}}</strong></td>
           <td>{{if .TeamBFlag}}<span class="muted mono">{{.TeamBFlag}}</span> {{end}}{{.TeamBName}}</td>
-          <td>{{if .CurrentMap}}{{.CurrentMap.Name}}{{end}}</td>
+          <td>{{if .CurrentMap}}{{mapLabel .CurrentMap.Name}}{{end}}</td>
           <td><span class="badge {{statusClass .Status}}" data-match-status="{{.ID}}">{{statusLabel .Status}}</span></td>
           <td><a class="btn sm" href="/matches/{{.ID}}">Show</a></td>
         </tr>

@@ -75,7 +75,7 @@
           <td>{{if .TeamAFlag}}<span class="muted mono">{{.TeamAFlag}}</span> {{end}}{{.TeamAName}}</td>
           <td class="num"><strong>{{.ScoreA}} - {{.ScoreB}}</strong></td>
           <td>{{if .TeamBFlag}}<span class="muted mono">{{.TeamBFlag}}</span> {{end}}{{.TeamBName}}</td>
-          <td>{{if .CurrentMap}}{{.CurrentMap.Name}}{{end}}</td>
+          <td>{{if .CurrentMap}}{{mapLabel .CurrentMap.Name}}{{end}}</td>
           {{if $.IsAdmin}}<td class="mono">{{.IP}}</td>{{end}}
           <td>{{if .Enable}}{{if eq .Status 1}}<span class="badge warn">Starting</span>{{else}}<span class="badge ok">Yes</span>{{end}}{{else}}<span class="badge muted">No</span>{{end}}</td>
           <td><span class="badge {{statusClass .Status}}" data-match-status="{{.ID}}">{{statusLabel .Status}}</span></td>

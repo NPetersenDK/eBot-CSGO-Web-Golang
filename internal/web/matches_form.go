@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/NPetersenDK/eBot-CSGO-Web-Golang/internal/config"
 	"github.com/NPetersenDK/eBot-CSGO-Web-Golang/internal/store"
 )
 
@@ -222,7 +223,7 @@ func (h *matchHandlers) formPage(refs matchRefs, f matchFormValues, existing *st
 		Seasons:       refs.seasons,
 		Teams:         refs.teams,
 		Servers:       refs.servers,
-		MapChoices:    append(slices.Clone(cfg.Maps), tbaMap),
+		MapChoices:    mapChoices(cfg.Maps, existing),
 		RulesChoices:  cfg.Rules,
 		AutoStartOpts: intChoices(matchAutoStartChoices, ""),
 		Modes:         matchModes,
@@ -262,6 +263,34 @@ func (h *matchHandlers) newForm(w http.ResponseWriter, r *http.Request) {
 	f := h.defaultsForm()
 	f.Map = firstOr(h.app.Cfg.Maps, tbaMap)
 	h.app.Render(w, r, "match_form", h.formPage(refs, f, nil))
+}
+
+// mapChoices is the map select: the configured maps, "tba" (pick in game by
+// veto) and "CurrentMap" (stay on the server's map, for workshop maps). On
+// edit the stored name is kept as a choice, because the bot renames
+// "CurrentMap" to "CurrentMap-<map>" and a map may have left EBOT_MAPS.
+func mapChoices(maps []string, existing *store.Match) []string {
+	out := append(slices.Clone(maps), tbaMap, config.CurrentMap)
+	if existing != nil && existing.CurrentMap != nil && !slices.Contains(out, existing.CurrentMap.Name) {
+		out = append(out, existing.CurrentMap.Name)
+	}
+	return out
+}
+
+func init() {
+	registerFunc("mapLabel", func(name string) string {
+		switch {
+		case name == tbaMap:
+			return "Choose by map veto"
+		case name == config.CurrentMap:
+			return "Current server map (no map change)"
+		case config.IsCurrentMap(name):
+			if _, real, ok := strings.Cut(name, "-"); ok && real != "" {
+				return real + " (server map)"
+			}
+		}
+		return name
+	})
 }
 
 func firstOr(s []string, def string) string {
@@ -503,7 +532,7 @@ func (h *matchHandlers) parseMatchForm(r *http.Request, refs matchRefs, existing
 	} else {
 		in.MapSelectionMode = f.Mode
 	}
-	valid := append(slices.Clone(cfg.Maps), tbaMap)
+	valid := mapChoices(cfg.Maps, existing)
 	switch {
 	case f.Map == "":
 		errs["map"] = "Required."

@@ -76,3 +76,14 @@ func TestLocalLoginNeedsAlternative(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 }
+
+func TestIsCurrentMap(t *testing.T) {
+	for name, want := range map[string]bool{
+		"CurrentMap": true, "currentmap": true, "CurrentMap-workshop_x": true,
+		"de_dust2": false, "tba": false, "": false,
+	} {
+		if got := IsCurrentMap(name); got != want {
+			t.Errorf("IsCurrentMap(%q) = %v", name, got)
+		}
+	}
+}

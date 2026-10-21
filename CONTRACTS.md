@@ -104,6 +104,10 @@ API (WP-H): `/api/...`, header `X-API-Key`, keys from `EBOT_API_KEYS`.
 
 0 not started, 1 starting, 2 warmup knife, 3 knife, 4 end knife, 5 warmup first side, 6 first side, 7 warmup second side, 8 second side, 9 warmup overtime first, 10 overtime first, 11 warmup overtime second, 12 overtime second, 13 finished, 14 archived. Constants and labels are in `internal/store/types.go`.
 
-## Current map
+## Server map ("CurrentMap")
+
+A map named `CurrentMap` tells the bot to stay on the map the game server is already on and never run `changelevel`. It is how workshop maps are used. The bot renames it to `CurrentMap-<map>` once it knows the real map, so any name that contains `currentmap` (case-insensitive, `config.IsCurrentMap`) is a server map. `tba` means the map is chosen by veto in game. Both are always offered in the map select. On edit the stored name is also offered, so a renamed server map or a map that left `EBOT_MAPS` is kept. Show map names through the `mapLabel` template function.
+
+## Current map (database)
 
 `matchs.current_map` points at a row in `maps`. Create inserts the match, then exactly one `maps` row (`MatchInput.Maps` has one entry, `"tba"` when the map is chosen in game, side from `MatchInput.Side` or random), then sets `current_map` to it, all in one transaction. The bot creates the other maps of a series itself. Update renames the current map and never adds or removes maps. Lists show the current map and its score. The match view lists every map and marks the current one. `skipmap` moves it (the bot does that, the panel only sends the command).

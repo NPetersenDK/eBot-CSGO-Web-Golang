@@ -14,6 +14,17 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+// CurrentMap is the special map name that makes the bot stay on whatever map
+// the game server is already running (no changelevel). It is how workshop
+// maps are used. The bot renames it to "CurrentMap-<map>" once it knows the
+// real map, so match any name that contains it.
+const CurrentMap = "CurrentMap"
+
+// IsCurrentMap reports whether a map name is the server's own map.
+func IsCurrentMap(name string) bool {
+	return strings.Contains(strings.ToLower(name), "currentmap")
+}
+
 const DefaultMaps = "de_dust2,de_mirage,de_inferno,de_nuke,de_ancient,de_anubis,de_overpass,de_vertigo"
 
 type OIDC struct {
