@@ -107,9 +107,8 @@ services:
         condition: service_healthy
 
   # Legacy PHP panel (repository ../../eBot-CSGO-Web). Only starts with the
-  # "legacy" profile. Its schema setup runs on the first start, when the
-  # database has no sf_guard_user table. Run it once before the Go panel
-  # if the database is empty.
+  # "legacy" profile. It is not needed: the Go panel creates the tables on an
+  # empty database. Both panels can share one database.
   ebot-web-php:
     # The image must serve HTTP on port 80. The Dockerfile in eBot-CSGO-Web
     # only starts php-fpm, so put a web server in front of it.

@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -54,6 +55,10 @@ type Config struct {
 	Version string
 
 	DBDSN string
+	// AutoMigrate creates missing tables at start. It never changes a table that exists.
+	AutoMigrate bool
+	// DBWait is how long to wait for the database to accept connections at start.
+	DBWait time.Duration
 
 	RedisAddr     string
 	RedisUsername string
@@ -145,6 +150,9 @@ func Load(getenv func(string) string) (*Config, error) {
 		LogLevel:  e.str("EBOT_LOG_LEVEL", "info"),
 		LogFormat: e.str("EBOT_LOG_FORMAT", "text"),
 	}
+
+	c.AutoMigrate = e.boolean("EBOT_AUTO_MIGRATE", true)
+	c.DBWait = time.Duration(e.integer("EBOT_DB_WAIT", 60)) * time.Second
 
 	c.DBDSN = e.str("EBOT_DB_DSN", "")
 	if c.DBDSN == "" {

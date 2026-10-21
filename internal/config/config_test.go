@@ -101,3 +101,17 @@ func TestMatchDefaultsFromEnv(t *testing.T) {
 		t.Fatalf("defaults = %+v", c.Defaults)
 	}
 }
+
+func TestMigrateDefaults(t *testing.T) {
+	c, err := Load(lookup(map[string]string{"EBOT_SESSION_KEY": key32}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.AutoMigrate || c.DBWait.Seconds() != 60 {
+		t.Fatalf("auto migrate %v, wait %v", c.AutoMigrate, c.DBWait)
+	}
+	c, err = Load(lookup(map[string]string{"EBOT_SESSION_KEY": key32, "EBOT_AUTO_MIGRATE": "false", "EBOT_DB_WAIT": "5"}))
+	if err != nil || c.AutoMigrate || c.DBWait.Seconds() != 5 {
+		t.Fatalf("overrides: %+v %v", c, err)
+	}
+}

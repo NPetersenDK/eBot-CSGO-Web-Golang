@@ -29,7 +29,7 @@ Read this before touching anything. Several people work on this repo at the same
 
 ## Database
 
-The MySQL schema is shared with the PHP app and must not change. Source of truth: `../eBot-CSGO-Web/config/doctrine/schema.yml` and `../eBot-CSGO-Web/plugins/sfDoctrineGuardPlugin/config/doctrine/schema.yml`.
+The MySQL schema is shared with the PHP app and must not change. The panel creates it on an empty database from `internal/store/schema.sql` (the Doctrine output of the PHP app, never edited by hand) and never alters an existing table. Source of truth: `../eBot-CSGO-Web/config/doctrine/schema.yml` and `../eBot-CSGO-Web/plugins/sfDoctrineGuardPlugin/config/doctrine/schema.yml`.
 
 - Every table has `id BIGINT AUTO_INCREMENT`, `created_at`, `updated_at`. There is no database default for the two timestamps: set both on every insert, `updated_at` on every update.
 - Booleans are `TINYINT(1)`. Enums are `VARCHAR`.

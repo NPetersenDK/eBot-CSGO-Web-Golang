@@ -14,13 +14,13 @@ The match admin panel for the eBot CS:GO bot, written in Go. It is a rewrite of 
 - Health endpoints for orchestrators: `/healthz` (liveness) and `/readyz` (checks MySQL and Redis).
 - Configuration only through environment variables. Each variable also accepts a `NAME_FILE` path for secrets.
 - Optional OIDC single sign-on with role mapping. Local accounts still work.
-- The panel does not change the database schema. It reads and writes the tables that the PHP panel and the bot use.
+- It creates the database tables itself when the database is empty, so the PHP panel is not needed. It never alters or drops a table that exists. See "Running without the PHP panel".
 
 ## Running side by side with the PHP panel
 
 Both panels use one MySQL database (`ebotv3` by default) and one Redis.
 
-- The schema is created by the PHP panel on its first start. The Go panel never creates or changes tables.
+- The tables are the same ones. Either panel can create them on an empty database. The Go panel only creates tables that are missing and never changes one that exists, so it is safe on a database the PHP panel made.
 - Users are shared. Local accounts are rows in `sf_guard_user`, the table the PHP panel uses. A user can log in to either panel with the same password.
 - Sessions are separate. Logging in to one panel does not log you in to the other.
 - Matches, teams, servers and everything else are the same rows in both panels.
@@ -40,13 +40,11 @@ docker compose up -d --build
 
 The panel is then at http://localhost:8080/.
 
-The compose file starts MySQL 8.4, Redis 7, the bot and the Go panel. The legacy PHP panel is behind the `legacy` profile:
+The compose file starts MySQL 8.4, Redis 7, the bot and the Go panel. On an empty database the Go panel creates the tables and, with `EBOT_ADMIN_USER` and `EBOT_ADMIN_PASSWORD` set, the first admin account. The PHP panel is not needed, but it is behind the `legacy` profile if you want to run both:
 
 ```sh
 docker compose --profile legacy up -d ebot-web-php
 ```
-
-Start it once on an empty database. Its first start creates the tables and an admin account (`EBOT_ADMIN_USER`, `EBOT_ADMIN_PASSWORD`). After that the Go panel can run on its own.
 
 The bot needs a `config/config.ini` that points at the `mysql` and `redis` services and listens on `0.0.0.0`. See the comments in `deploy/docker-compose.yml`.
 
@@ -75,6 +73,8 @@ Every variable is read in `internal/config/config.go`. Each one also accepts `NA
 | `EBOT_SESSION_KEY` | (none) | Key that signs session cookies. Required, at least 32 bytes. |
 | `EBOT_INSECURE_COOKIES` | `false` | Plain HTTP and a random session key. Development only. |
 | `EBOT_TRUST_PROXY` | `false` | Use the right-most `X-Forwarded-For` address for the login rate limit. Enable only behind a proxy that sets it. |
+| `EBOT_AUTO_MIGRATE` | `true` | Create the tables that are missing at start. It never alters or drops a table that exists. Set `false` to leave the database alone. |
+| `EBOT_DB_WAIT` | `60` | Seconds to wait for the database to accept connections at start. |
 | `EBOT_ADMIN_USER` | (empty) | Creates this admin account when the user table is empty. Needs `EBOT_ADMIN_PASSWORD`. |
 | `EBOT_ADMIN_PASSWORD` | (empty) | Password for the account above. |
 | `EBOT_LOCAL_LOGIN_DISABLED` | `false` | Hides the username and password form. Needs `EBOT_OIDC_ISSUER`. |
@@ -123,6 +123,26 @@ EBOT_OIDC_ROLE_MAP=ebot-admin=admin,ebot-viewer=viewer
 - `EBOT_OIDC_DEFAULT_ROLE=deny` (the default) rejects users that match no entry. Set it to `viewer` to let every other SSO user read the admin pages.
 
 `EBOT_LOCAL_LOGIN_DISABLED=true` hides the password form. It needs SSO to be configured, otherwise nobody could log in.
+
+## Running without the PHP panel
+
+Point the panel at an empty MySQL database and start it. It creates the tables, then creates the first admin account when `EBOT_ADMIN_USER` and `EBOT_ADMIN_PASSWORD` are set and there are no users yet.
+
+```sh
+EBOT_DB_HOST=mysql EBOT_DB_NAME=ebotv3 EBOT_DB_USER=ebot EBOT_DB_PASSWORD=... \
+EBOT_SESSION_KEY=... EBOT_ADMIN_USER=admin EBOT_ADMIN_PASSWORD=... ./server
+```
+
+- The tables are the ones the bot and the PHP panel use, taken from the Doctrine output of eBot-CSGO-Web (`internal/store/schema.sql`, 23 tables with their foreign keys). The bot works against them without changes.
+- Only missing tables are created. A table that exists is never altered, so the panel is safe to start on a database made by the PHP panel, and starting it again does nothing.
+- If creating the tables fails halfway, the tables made in that run are removed again, so the next start begins clean.
+- The panel waits up to `EBOT_DB_WAIT` seconds for MySQL, so it can start together with the database.
+- The database user needs `CREATE`, `ALTER` and `REFERENCES` on the database for the first start (the foreign keys are added with `ALTER TABLE`), and `DROP` to undo a failed first start. Once the tables exist, nothing is created and these rights are not used. The default user of the MySQL image has them.
+- Columns are not upgraded. If the bot or the panel later needs a new column, add it by hand or recreate the tables.
+- Several panels can start at once. A database lock makes them take turns.
+- Set `EBOT_AUTO_MIGRATE=false` to never touch the schema, for example when the database user is read and write only.
+
+To remake `schema.sql` after a schema change in eBot-CSGO-Web, run `php symfony doctrine:build --all-classes --sql --no-confirmation` there and copy `data/sql/schema.sql`. Do not edit the file by hand.
 
 ## Map dropdown
 
@@ -210,7 +230,7 @@ The integration tests need a MySQL database. They run only when `EBOT_TEST_DSN` 
 EBOT_TEST_DSN='ebot:secret@tcp(127.0.0.1:3306)/ebot_test?parseTime=true' go test ./internal/store/...
 ```
 
-Point `EBOT_TEST_DSN` at a database that the tests may change. The tests create their own schema from `internal/store/testdata`.
+Point `EBOT_TEST_DSN` at a database that the tests may change. Most tests create their own small schema from `internal/store/testdata`. The migration tests build the real schema in an empty database named after `EBOT_TEST_DSN` with a suffix.
 
 ## Project layout
 
@@ -218,7 +238,7 @@ Point `EBOT_TEST_DSN` at a database that the tests may change. The tests create 
 |---|---|
 | `cmd/server` | Entry point. Loads the config, opens MySQL and Redis, starts the HTTP server. |
 | `internal/config` | Environment variables and defaults. |
-| `internal/store` | All SQL. Uses the existing schema. |
+| `internal/store` | All SQL, and the embedded schema (`schema.sql`) that creates the tables. |
 | `internal/auth` | Local login, OIDC, roles and sessions. |
 | `internal/web` | Pages and form handlers. |
 | `internal/live` | Server-sent events for live match updates. |

@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net"
@@ -47,11 +48,26 @@ func run() error {
 	log := newLogger(cfg)
 	slog.SetDefault(log)
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	st, err := store.Open(cfg.DBDSN)
 	if err != nil {
 		return err
 	}
 	defer st.Close()
+	if err := waitForDB(ctx, st, cfg.DBWait, log); err != nil {
+		return err
+	}
+	if cfg.AutoMigrate {
+		res, err := st.Migrate(ctx)
+		if err != nil {
+			return fmt.Errorf("create the database schema (set EBOT_AUTO_MIGRATE=false to skip): %w", err)
+		}
+		if len(res.Created) > 0 {
+			log.Info("created database tables", "count", len(res.Created))
+		}
+	}
 
 	rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Username: cfg.RedisUsername, Password: cfg.RedisPassword})
 	defer rdb.Close()
@@ -68,9 +84,6 @@ func run() error {
 	if err := web.NewApp(app, assets); err != nil {
 		return err
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	if err := bootstrapAdmin(ctx, cfg, st); err != nil {
 		return err
@@ -130,6 +143,31 @@ func newLogger(cfg *config.Config) *slog.Logger {
 		return slog.New(slog.NewJSONHandler(os.Stderr, opts))
 	}
 	return slog.New(slog.NewTextHandler(os.Stderr, opts))
+}
+
+// waitForDB retries until MySQL accepts connections, so the panel can start
+// together with the database in a compose file or a cluster.
+func waitForDB(ctx context.Context, st *store.Store, wait time.Duration, log *slog.Logger) error {
+	deadline := time.Now().Add(wait)
+	for attempt := 1; ; attempt++ {
+		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		err := st.Ping(pingCtx)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) || ctx.Err() != nil {
+			return fmt.Errorf("database not reachable after %s: %w", wait, err)
+		}
+		if attempt == 1 || attempt%5 == 0 {
+			log.Warn("waiting for the database", "err", err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
 }
 
 // bootstrapAdmin creates the first super admin when the user table is empty.
