@@ -1,6 +1,11 @@
 # eBot-CSGO-Web-Golang
 
-The match admin panel for the eBot CS:GO bot, written in Go. It is a rewrite of the PHP panel in `../eBot-CSGO-Web`. It runs against the same MySQL database and the same Redis as the PHP panel and the bot.
+> [!WARNING]
+> **Disclaimer.** This is a quick move from PHP 5.4 to Go, made to get away from the many PHP vulnerabilities, among them the recent one in PHP 8.4.
+>
+> Most of it has probably not been tested, and large parts were written with the help of AI. Review it and test it before you rely on it.
+
+The match admin panel for the eBot CS:GO bot, written in Go. It is a rewrite of the PHP panel [eBot-CSGO-Web](https://github.com/deStrO/eBot-CSGO-Web). It runs against the same MySQL database and the same Redis as the PHP panel and the bot.
 
 ## How it differs from the PHP panel
 
