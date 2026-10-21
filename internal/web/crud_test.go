@@ -299,7 +299,7 @@ func flashOf(t *testing.T, w *httptest.ResponseRecorder) string {
 	t.Helper()
 	for _, c := range w.Result().Cookies() {
 		if c.Name == flashCookie {
-			b, err := base64.RawURLEncoding.DecodeString(c.Value)
+			b, err := base64.RawURLEncoding.DecodeString(strings.SplitN(c.Value, ".", 2)[0])
 			if err != nil {
 				t.Fatal(err)
 			}

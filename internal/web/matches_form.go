@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/NPetersenDK/eBot-CSGO-Web-Golang/internal/config"
 	"github.com/NPetersenDK/eBot-CSGO-Web-Golang/internal/store"
@@ -155,13 +154,13 @@ func (h *matchHandlers) defaultsForm() matchFormValues {
 		OT:            d.OvertimeEnable,
 		OTMoney:       strconv.Itoa(d.OvertimeStartMoney),
 		OTMaxRound:    strconv.Itoa(d.OvertimeMaxRound),
-		StartDate:     time.Now().Format(matchStartDateLayout),
+		StartDate:     time.Now().In(h.app.Loc()).Format(matchStartDateLayout),
 		AutoStartTime: "5",
 		Mode:          "normal",
 	}
 }
 
-func formFromMatch(m store.Match, maps []store.Map) matchFormValues {
+func formFromMatch(m store.Match, maps []store.Map, loc *time.Location) matchFormValues {
 	f := matchFormValues{
 		Rules:         m.Rules,
 		Password:      m.ConfigPassword,
@@ -196,9 +195,9 @@ func formFromMatch(m store.Match, maps []store.Map) matchFormValues {
 		f.ServerID = strconv.FormatInt(*m.ServerID, 10)
 	}
 	if m.StartDate != nil {
-		f.StartDate = m.StartDate.Local().Format(matchStartDateLayout)
+		f.StartDate = m.StartDate.In(loc).Format(matchStartDateLayout)
 	} else {
-		f.StartDate = time.Now().Format(matchStartDateLayout)
+		f.StartDate = time.Now().In(loc).Format(matchStartDateLayout)
 	}
 	for _, mp := range maps {
 		if m.CurrentMapID != nil && mp.ID == *m.CurrentMapID {
@@ -269,10 +268,6 @@ func (h *matchHandlers) newForm(w http.ResponseWriter, r *http.Request) {
 // veto) and "CurrentMap" (stay on the server's map, for workshop maps). On
 // edit the stored name is kept as a choice, because the bot renames
 // "CurrentMap" to "CurrentMap-<map>" and a map may have left EBOT_MAPS.
-// rulesName is the file name the bot runs as "exec <rules>.cfg" over RCON, so
-// it must never contain a separator or a space.
-var rulesName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,200}$`)
-
 func mapChoices(maps []string, existing *store.Match) []string {
 	out := append(slices.Clone(maps), tbaMap, config.CurrentMap)
 	if existing != nil && existing.CurrentMap != nil && !slices.Contains(out, existing.CurrentMap.Name) {
@@ -335,7 +330,7 @@ func (h *matchHandlers) editForm(w http.ResponseWriter, r *http.Request) {
 		h.app.ServerError(w, r, err)
 		return
 	}
-	h.app.Render(w, r, "match_form", h.formPage(refs, formFromMatch(*m, maps), m))
+	h.app.Render(w, r, "match_form", h.formPage(refs, formFromMatch(*m, maps, h.app.Loc()), m))
 }
 
 func formBool(r *http.Request, name string) bool { return r.PostForm.Get(name) != "" }
@@ -415,10 +410,19 @@ func (h *matchHandlers) parseMatchForm(r *http.Request, refs matchRefs, existing
 			}
 			return &t.ID, t.Name, t.Flag
 		}
+		oldName := ""
+		if existing != nil {
+			oldName = existing.TeamAName
+			if key == "team_b" {
+				oldName = existing.TeamBName
+			}
+		}
 		if name == "" {
 			errs[key+"_name"] = "Choose a team or enter a team name."
-		} else if utf8.RuneCountInString(name) > 255 {
-			errs[key+"_name"] = "At most 255 characters."
+		} else if name != oldName {
+			if err := store.CheckTeamName(name); err != nil {
+				errs[key+"_name"] = err.Error()
+			}
 		}
 		if flag != "" && !matchFlagPattern.MatchString(flag) {
 			errs[key+"_flag"] = "Use a country code such as DK."
@@ -435,14 +439,18 @@ func (h *matchHandlers) parseMatchForm(r *http.Request, refs matchRefs, existing
 	switch {
 	case f.Rules == "":
 		errs["rules"] = "Required."
-	case !rulesName.MatchString(f.Rules):
-		errs["rules"] = "Use letters, digits, dot, dash and underscore only."
+	case existing != nil && f.Rules == existing.Rules:
+		in.Rules = f.Rules
+	case store.CheckRules(f.Rules) != nil:
+		errs["rules"] = store.CheckRules(f.Rules).Error()
 	default:
 		in.Rules = f.Rules
 	}
 
-	if utf8.RuneCountInString(f.Password) > 100 {
-		errs["config_password"] = "At most 100 characters."
+	if existing == nil || f.Password != existing.ConfigPassword {
+		if err := store.CheckMatchPassword(f.Password); err != nil {
+			errs["config_password"] = err.Error()
+		}
 	}
 	in.ConfigPassword = f.Password
 
@@ -500,7 +508,7 @@ func (h *matchHandlers) parseMatchForm(r *http.Request, refs matchRefs, existing
 	// Autostart. Without a start date, autostart is switched off, as before.
 	in.AutoStartTime = 5
 	if f.StartDate != "" {
-		t, err := time.ParseInLocation(matchStartDateLayout, f.StartDate, time.Local)
+		t, err := time.ParseInLocation(matchStartDateLayout, f.StartDate, h.app.Loc())
 		if err != nil {
 			errs["startdate"] = "Use the format dd.mm.yyyy hh:mm."
 		} else {

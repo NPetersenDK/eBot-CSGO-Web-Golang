@@ -1,9 +1,12 @@
 package web
 
 import (
+	"encoding/base64"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/NPetersenDK/eBot-CSGO-Web-Golang/internal/auth"
 )
@@ -124,5 +127,76 @@ func between(s, open, closeStr string) []string {
 		}
 		out = append(out, s[:j])
 		s = s[j:]
+	}
+}
+
+func TestFlashIsSigned(t *testing.T) {
+	e := newMatchTestEnv(t)
+	e.app.Cfg.SessionKey = []byte("0123456789abcdef0123456789abcdef")
+
+	rec := httptest.NewRecorder()
+	e.app.SetFlash(rec, "ok", "Saved.")
+	cookie := rec.Result().Cookies()[0]
+	if !strings.Contains(cookie.Value, ".") {
+		t.Fatalf("flash cookie is not signed: %q", cookie.Value)
+	}
+
+	show := func(value string, header string) string {
+		req := httptest.NewRequest("GET", "/matches", nil)
+		req.AddCookie(&http.Cookie{Name: flashCookie, Value: value})
+		if header != "" {
+			req.Header.Set("X-Live-Refresh", header)
+		}
+		rec := httptest.NewRecorder()
+		e.app.NotFound(rec, req)
+		return rec.Body.String() + "|" + rec.Header().Get("Set-Cookie")
+	}
+	if got := show(cookie.Value, ""); !strings.Contains(got, "Saved.") {
+		t.Error("a signed flash must show")
+	}
+
+	forged := base64.RawURLEncoding.EncodeToString([]byte("err:Your account is locked, call 555-1234")) + "." + strings.SplitN(cookie.Value, ".", 2)[1]
+	if got := show(forged, ""); strings.Contains(got, "555-1234") {
+		t.Error("a flash with a signature for other text must be ignored")
+	}
+	unsigned := base64.RawURLEncoding.EncodeToString([]byte("err:Planted"))
+	if got := show(unsigned, ""); strings.Contains(got, "Planted") {
+		t.Error("an unsigned flash must be ignored")
+	}
+
+	// A background refresh must leave the flash for the page that is loading.
+	got := show(cookie.Value, "1")
+	if strings.Contains(got, "Saved.") || strings.Contains(got, flashCookie) {
+		t.Errorf("a live refresh must not show or clear the flash: %s", got)
+	}
+}
+
+func TestStartDateUsesTheConfiguredZone(t *testing.T) {
+	e := newMatchTestEnv(t)
+	loc, err := time.LoadLocation("Europe/Copenhagen")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.app.Cfg.Location = loc
+
+	v := validMatchForm()
+	v.Set("startdate", "21.10.2026 15:00")
+	in, errs := parseMatchWith(t, e, v, nil)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if got := in.StartDate.UTC().Format("2006-01-02 15:04"); got != "2026-10-21 13:00" {
+		t.Errorf("stored as %s UTC, want 13:00 (15:00 in Copenhagen, UTC+2)", got)
+	}
+
+	// Showing it again gives what the admin typed, so saving does not move it.
+	m := sampleMatch()
+	utc := in.StartDate.UTC()
+	m.StartDate = &utc
+	if got := formFromMatch(m, nil, loc).StartDate; got != "21.10.2026 15:00" {
+		t.Errorf("form shows %q", got)
+	}
+	if got := fmtTime("2006-01-02 15:04", loc)(m.StartDate); got != "2026-10-21 15:04"[:11]+"15:00" {
+		t.Errorf("page shows %q", got)
 	}
 }

@@ -115,3 +115,27 @@ func TestMigrateDefaults(t *testing.T) {
 		t.Fatalf("overrides: %+v %v", c, err)
 	}
 }
+
+func TestTimezone(t *testing.T) {
+	c, err := Load(lookup(map[string]string{"EBOT_SESSION_KEY": key32}))
+	if err != nil || c.Location.String() != "UTC" {
+		t.Fatalf("default: %v %v", c.Location, err)
+	}
+	c, err = Load(lookup(map[string]string{"EBOT_SESSION_KEY": key32, "EBOT_TIMEZONE": "Europe/Copenhagen"}))
+	if err != nil || c.Location.String() != "Europe/Copenhagen" {
+		t.Fatalf("zone: %v %v", c.Location, err)
+	}
+	if _, err := Load(lookup(map[string]string{"EBOT_SESSION_KEY": key32, "EBOT_TIMEZONE": "Mars/Base"})); err == nil {
+		t.Fatal("an unknown zone must fail at start")
+	}
+}
+
+func TestPlaceholderSessionKeyIsRefused(t *testing.T) {
+	_, err := Load(lookup(map[string]string{"EBOT_SESSION_KEY": "change-me-32-chars-minimum-replace-this-value"}))
+	if err == nil || !strings.Contains(err.Error(), "placeholder") {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Load(lookup(map[string]string{"EBOT_SESSION_KEY": "CHANGE-ME-abcdefghijklmnopqrstuvwxyz"})); err == nil {
+		t.Fatal("the check must ignore case")
+	}
+}

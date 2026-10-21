@@ -3,6 +3,8 @@ package web
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"html/template"
@@ -72,8 +74,8 @@ func NewApp(a *App, assets fs.FS) error {
 		"isRunning":   store.IsRunning,
 		"add":         func(a, b int) int { return a + b },
 		"sub":         func(a, b int) int { return a - b },
-		"date":        fmtTime("2006-01-02"),
-		"datetime":    fmtTime("2006-01-02 15:04"),
+		"date":        fmtTime("2006-01-02", a.Loc()),
+		"datetime":    fmtTime("2006-01-02 15:04", a.Loc()),
 		"join":        strings.Join,
 		"hasPrefix":   strings.HasPrefix,
 		"deref": func(p *int64) int64 {
@@ -106,19 +108,27 @@ func NewApp(a *App, assets fs.FS) error {
 	return nil
 }
 
-func fmtTime(layout string) func(any) string {
+// Loc is the time zone dates are shown and typed in.
+func (a *App) Loc() *time.Location {
+	if a.Cfg != nil && a.Cfg.Location != nil {
+		return a.Cfg.Location
+	}
+	return time.UTC
+}
+
+func fmtTime(layout string, loc *time.Location) func(any) string {
 	return func(v any) string {
 		switch t := v.(type) {
 		case time.Time:
 			if t.IsZero() {
 				return ""
 			}
-			return t.Format(layout)
+			return t.In(loc).Format(layout)
 		case *time.Time:
 			if t == nil || t.IsZero() {
 				return ""
 			}
-			return t.Format(layout)
+			return t.In(loc).Format(layout)
 		}
 		return ""
 	}
@@ -143,7 +153,10 @@ func (a *App) RenderStatus(w http.ResponseWriter, r *http.Request, status int, p
 		Path:  r.URL.Path,
 		Cfg:   a.Cfg,
 		Data:  data,
-		Flash: a.takeFlash(w, r),
+	}
+	// A background refresh must not eat the flash meant for a page that is loading.
+	if r.Header.Get("X-Live-Refresh") == "" {
+		v.Flash = a.takeFlash(w, r)
 	}
 	if s, ok := auth.FromContext(r.Context()); ok {
 		v.User = &s
@@ -169,7 +182,7 @@ func (a *App) RenderStatus(w http.ResponseWriter, r *http.Request, status int, p
 func (a *App) SetFlash(w http.ResponseWriter, kind, msg string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     flashCookie,
-		Value:    base64.RawURLEncoding.EncodeToString([]byte(kind + ":" + msg)),
+		Value:    a.signFlash(kind + ":" + msg),
 		Path:     "/",
 		MaxAge:   60,
 		HttpOnly: true,
@@ -184,15 +197,45 @@ func (a *App) takeFlash(w http.ResponseWriter, r *http.Request) *Flash {
 		return nil
 	}
 	http.SetCookie(w, &http.Cookie{Name: flashCookie, Path: "/", MaxAge: -1})
-	b, err := base64.RawURLEncoding.DecodeString(c.Value)
-	if err != nil {
+	text, ok := a.verifyFlash(c.Value)
+	if !ok {
 		return nil
 	}
-	kind, msg, ok := strings.Cut(string(b), ":")
+	kind, msg, ok := strings.Cut(text, ":")
 	if !ok || (kind != "ok" && kind != "warn" && kind != "err") {
 		return nil
 	}
 	return &Flash{Kind: kind, Message: msg}
+}
+
+// signFlash returns "<base64 text>.<base64 hmac>". The message comes from the
+// server and is escaped on output, but an unsigned cookie could be planted by a
+// sibling site and shown as a banner.
+func (a *App) signFlash(text string) string {
+	mac := hmac.New(sha256.New, a.Cfg.SessionKey)
+	mac.Write([]byte("flash:" + text))
+	return base64.RawURLEncoding.EncodeToString([]byte(text)) + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func (a *App) verifyFlash(value string) (string, bool) {
+	body, sig, ok := strings.Cut(value, ".")
+	if !ok {
+		return "", false
+	}
+	text, err := base64.RawURLEncoding.DecodeString(body)
+	if err != nil {
+		return "", false
+	}
+	got, err := base64.RawURLEncoding.DecodeString(sig)
+	if err != nil {
+		return "", false
+	}
+	mac := hmac.New(sha256.New, a.Cfg.SessionKey)
+	mac.Write([]byte("flash:" + string(text)))
+	if !hmac.Equal(got, mac.Sum(nil)) {
+		return "", false
+	}
+	return string(text), true
 }
 
 // Redirect sends a 303 to a local path.

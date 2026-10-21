@@ -365,6 +365,9 @@ func (s *Store) CreateMatch(ctx context.Context, in MatchInput) (int64, error) {
 	if len(in.Maps) != 1 {
 		return 0, invalid("a match is created with exactly one map")
 	}
+	if err := validateMatch(in, matchSnapshot{}); err != nil {
+		return 0, err
+	}
 	side, err := startSide(in.Side)
 	if err != nil {
 		return 0, err
@@ -457,6 +460,16 @@ func (s *Store) UpdateMatch(ctx context.Context, id int64, in MatchInput) error 
 				return errors.New("match has no map")
 			}
 			next = existing[0]
+		}
+		var old matchSnapshot
+		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(team_a_name, ''), COALESCE(team_b_name, ''),
+			COALESCE(team_a_flag, ''), COALESCE(team_b_flag, ''), COALESCE(rules, ''), COALESCE(config_password, ''),
+			COALESCE((SELECT map_name FROM maps WHERE id = ?), '') FROM matchs WHERE id = ?`, next, id).
+			Scan(&old.TeamAName, &old.TeamBName, &old.TeamAFlag, &old.TeamBFlag, &old.Rules, &old.Password, &old.MapName); err != nil {
+			return err
+		}
+		if err := validateMatch(in, old); err != nil {
+			return err
 		}
 		if _, err := tx.ExecContext(ctx, "UPDATE maps SET map_name = ?, updated_at = ? WHERE id = ?",
 			in.Maps[0].Name, t, next); err != nil {
