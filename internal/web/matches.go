@@ -46,6 +46,7 @@ type matchStore interface {
 	GetServer(ctx context.Context, id int64) (*store.Server, error)
 	ListTeams(ctx context.Context) ([]store.Team, error)
 	ListSeasons(ctx context.Context) ([]store.Season, error)
+	GlobalStats(ctx context.Context) (store.GlobalStats, error)
 }
 
 // commandSender delivers a live command to the bot.
@@ -74,6 +75,7 @@ func (h *matchHandlers) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /{$}", h.home)
 	mux.HandleFunc("GET /matches", h.list)
 	mux.HandleFunc("GET /matches/{id}", h.view)
+	mux.HandleFunc("GET /stats", h.stats)
 
 	mux.Handle("GET /admin/matches/new", admin(h.newForm))
 	mux.Handle("POST /admin/matches", admin(h.create))
@@ -228,6 +230,8 @@ func isAdminRequest(r *http.Request) bool {
 
 type homePage struct {
 	Rows []matchRow
+	// Stats is nil when the numbers could not be read. The page still renders.
+	Stats *store.GlobalStats
 }
 
 func (homePage) Title() string { return "" }
@@ -238,7 +242,26 @@ func (h *matchHandlers) home(w http.ResponseWriter, r *http.Request) {
 		h.app.ServerError(w, r, err)
 		return
 	}
-	h.app.Render(w, r, "home", homePage{Rows: h.rows(ms, false)})
+	page := homePage{Rows: h.rows(ms, false)}
+	if g, err := h.st.GlobalStats(r.Context()); err != nil {
+		h.app.Log.Error("global stats", "err", err)
+	} else {
+		page.Stats = &g
+	}
+	h.app.Render(w, r, "home", page)
+}
+
+type statsPage struct{ Stats store.GlobalStats }
+
+func (statsPage) Title() string { return "Statistics" }
+
+func (h *matchHandlers) stats(w http.ResponseWriter, r *http.Request) {
+	g, err := h.st.GlobalStats(r.Context())
+	if err != nil {
+		h.app.ServerError(w, r, err)
+		return
+	}
+	h.app.Render(w, r, "stats", statsPage{Stats: g})
 }
 
 type matchListPage struct {

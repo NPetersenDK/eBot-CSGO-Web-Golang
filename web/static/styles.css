@@ -276,3 +276,8 @@ form:has(input[name="auto_start"]:checked) .autostart-field { display: flex; }
 .table .col-status { min-width: 150px; }
 .table td.id a { font-weight: 600; }
 .table td .actions { flex-wrap: wrap; min-width: 220px; max-width: 460px; }
+
+/* Statistics tables: label column on the left, value after it. */
+.table th.label { width: 260px; text-transform: none; font-size: 14px; color: var(--text); font-weight: 500; }
+.stats-card { max-width: 420px; }
+.stats-card .table th { text-transform: none; font-size: 14px; color: var(--muted); font-weight: 500; }

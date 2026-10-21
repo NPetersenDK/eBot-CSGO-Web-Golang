@@ -122,6 +122,10 @@ func (f *fakeMatchStore) GetServer(_ context.Context, id int64) (*store.Server, 
 	return nil, store.ErrNotFound
 }
 func (f *fakeMatchStore) ListTeams(context.Context) ([]store.Team, error) { return f.teams, nil }
+func (f *fakeMatchStore) GlobalStats(context.Context) (store.GlobalStats, error) {
+	return store.GlobalStats{Kills: 200, Headshots: 50, InProgress: 1, NotStarted: 2, Finished: 7, Servers: 3}, nil
+}
+
 func (f *fakeMatchStore) ListSeasons(context.Context) ([]store.Season, error) {
 	return f.seasons, nil
 }
@@ -860,4 +864,39 @@ func templateFunc(t *testing.T, name string) any {
 		t.Fatalf("template function %s is not registered", name)
 	}
 	return fn
+}
+
+func TestGlobalStatsPages(t *testing.T) {
+	e := newMatchTestEnv(t)
+
+	rec := e.do("GET", "/", "", nil)
+	body := rec.Body.String()
+	for _, want := range []string{"<h2>Statistics</h2>", ">200<", "50 (25.0%)", ">10<", `href="/stats"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("home missing %q", want)
+		}
+	}
+
+	rec = e.do("GET", "/stats", "", nil)
+	if rec.Code != 200 {
+		t.Fatalf("stats = %d", rec.Code)
+	}
+	body = rec.Body.String()
+	for _, want := range []string{"Number of kills", "25.0%", "Matches in progress", "Finished and archived matches", "Number of servers"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("stats page missing %q", want)
+		}
+	}
+}
+
+func TestHeadshotRate(t *testing.T) {
+	if _, ok := (store.GlobalStats{}).HeadshotRate(); ok {
+		t.Error("no kills must give no rate")
+	}
+	if r, ok := (store.GlobalStats{Kills: 3, Headshots: 1}).HeadshotRate(); !ok || r < 33.3 || r > 33.4 {
+		t.Errorf("rate = %v %v", r, ok)
+	}
+	if (store.GlobalStats{InProgress: 1, NotStarted: 2, Finished: 3}).Matches() != 6 {
+		t.Error("matches total")
+	}
 }

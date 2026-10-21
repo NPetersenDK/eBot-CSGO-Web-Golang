@@ -5,6 +5,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -415,6 +416,37 @@ type UserInput struct {
 	IsActive     bool
 	IsSuperAdmin bool
 }
+
+// GlobalStats are the public numbers on the statistics page.
+type GlobalStats struct {
+	Kills      int64
+	Headshots  int64
+	InProgress int
+	NotStarted int
+	// Finished counts finished and archived matches.
+	Finished int
+	Servers  int
+}
+
+// HeadshotRate is the share of kills that were headshots, in percent. It is
+// false when there are no kills.
+func (g GlobalStats) HeadshotRate() (float64, bool) {
+	if g.Kills <= 0 {
+		return 0, false
+	}
+	return float64(g.Headshots) * 100 / float64(g.Kills), true
+}
+
+// HeadshotPercent is HeadshotRate as text for pages.
+func (g GlobalStats) HeadshotPercent() string {
+	rate, ok := g.HeadshotRate()
+	if !ok {
+		return "not available"
+	}
+	return fmt.Sprintf("%.1f%%", rate)
+}
+
+func (g GlobalStats) Matches() int { return g.InProgress + g.NotStarted + g.Finished }
 
 type Counts struct {
 	Matches  int

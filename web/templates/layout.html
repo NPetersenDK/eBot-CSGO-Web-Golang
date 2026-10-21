@@ -14,6 +14,7 @@
     <nav class="nav">
       <a href="/matches" {{if eq .Path "/matches"}}class="active"{{end}}>Matches</a>
       <a href="/matches?status=archived">Archived</a>
+      <a href="/stats" {{if eq .Path "/stats"}}class="active"{{end}}>Statistics</a>
       {{if .User}}
       {{if .IsAdmin}}<a href="/admin/matches/new" {{if eq .Path "/admin/matches/new"}}class="active"{{end}}>New match</a>{{end}}
       <a href="/admin/servers" {{if eq .Path "/admin/servers"}}class="active"{{end}}>Servers</a>
