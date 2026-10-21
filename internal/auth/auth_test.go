@@ -452,7 +452,7 @@ func TestLoginPageProviders(t *testing.T) {
 
 func TestTemplates(t *testing.T) {
 	fsys := os.DirFS("../../web")
-	funcs := template.FuncMap{"join": strings.Join}
+	funcs := template.FuncMap{"join": strings.Join, "hasPrefix": strings.HasPrefix}
 	render := func(page string, data any) string {
 		tpl, err := template.New("layout").Funcs(funcs).ParseFS(fsys, "templates/layout.html", "templates/"+page+".html")
 		if err != nil {

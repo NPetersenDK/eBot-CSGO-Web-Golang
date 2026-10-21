@@ -75,6 +75,7 @@ func NewApp(a *App, assets fs.FS) error {
 		"date":        fmtTime("2006-01-02"),
 		"datetime":    fmtTime("2006-01-02 15:04"),
 		"join":        strings.Join,
+		"hasPrefix":   strings.HasPrefix,
 		"deref": func(p *int64) int64 {
 			if p == nil {
 				return 0

@@ -303,3 +303,18 @@ table.sortable th[aria-sort="ascending"]::after { content: " \25B2"; font-size: 
 table.sortable th[aria-sort="descending"]::after { content: " \25BC"; font-size: 9px; color: var(--accent); }
 table.sortable tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
 table.sortable tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+
+/* Navigation dropdowns. */
+.nav-menu summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  color: #d4dae2; white-space: nowrap;
+}
+.nav-menu summary::-webkit-details-marker { display: none; }
+.nav-menu summary:hover { color: var(--text); }
+.nav-menu summary.active { color: var(--text); font-weight: 600; }
+.nav-menu summary .caret { font-size: 12px; }
+.nav-menu .dropdown-menu { left: 0; right: auto; min-width: 200px; }
+.nav .dropdown-item { color: var(--text); white-space: nowrap; font-weight: 400; text-decoration: none; }
+.nav .dropdown-item:hover { background: rgba(74, 144, 226, 0.2); color: var(--text); text-decoration: none; }
+a.dropdown-item { color: var(--text); text-decoration: none; }
+a.dropdown-item:hover { text-decoration: none; }

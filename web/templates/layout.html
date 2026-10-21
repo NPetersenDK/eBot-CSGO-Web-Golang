@@ -12,16 +12,25 @@
   <header class="topbar">
     <a class="brand" href="/">{{.Brand}}</a>
     <nav class="nav">
-      <a href="/matches" {{if eq .Path "/matches"}}class="active"{{end}}>Matches</a>
-      <a href="/matches?status=archived">Archived</a>
-      <a href="/stats" {{if eq .Path "/stats"}}class="active"{{end}}>Statistics</a>
+      <details class="dropdown nav-menu">
+        <summary class="nav-link{{if or (hasPrefix .Path "/matches") (hasPrefix .Path "/admin/matches")}} active{{end}}">Matches <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <div class="dropdown-menu">
+          {{if .IsAdmin}}<a class="dropdown-item" href="/admin/matches/new">Create match</a>{{end}}
+          <a class="dropdown-item" href="/matches">Current matches</a>
+          <a class="dropdown-item" href="/matches?status=archived">Archived matches</a>
+        </div>
+      </details>
+      <a href="/stats" {{if hasPrefix .Path "/stats"}}class="active"{{end}}>Statistics</a>
       {{if .User}}
-      {{if .IsAdmin}}<a href="/admin/matches/new" {{if eq .Path "/admin/matches/new"}}class="active"{{end}}>New match</a>{{end}}
-      <a href="/admin/servers" {{if eq .Path "/admin/servers"}}class="active"{{end}}>Servers</a>
-      <a href="/admin/teams" {{if eq .Path "/admin/teams"}}class="active"{{end}}>Teams</a>
-      <a href="/admin/seasons" {{if eq .Path "/admin/seasons"}}class="active"{{end}}>Seasons</a>
-      <a href="/admin/ads" {{if eq .Path "/admin/ads"}}class="active"{{end}}>Advertising</a>
-      {{if .IsAdmin}}<a href="/admin/users" {{if eq .Path "/admin/users"}}class="active"{{end}}>Users</a>{{end}}
+      <details class="dropdown nav-menu">
+        <summary class="nav-link{{if or (hasPrefix .Path "/admin/servers") (hasPrefix .Path "/admin/teams") (hasPrefix .Path "/admin/seasons") (hasPrefix .Path "/admin/ads")}} active{{end}}">Management <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <div class="dropdown-menu">
+          <a class="dropdown-item" href="/admin/servers">Servers</a>
+          <a class="dropdown-item" href="/admin/teams">Teams</a>
+          <a class="dropdown-item" href="/admin/seasons">Seasons</a>
+          <a class="dropdown-item" href="/admin/ads">Advertisement</a>
+        </div>
+      </details>
       {{end}}
     </nav>
     <span class="spacer"></span>
@@ -48,6 +57,13 @@
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.5"/><path d="M8 17c.8-2 2.2-3 4-3s3.2 1 4 3"/></svg>
           {{.User.Role}}
         </div>
+        {{if .IsAdmin}}
+        <a class="dropdown-item" href="/admin/users">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Users
+        </a>
+        <hr class="dropdown-divider">
+        {{end}}
         <form method="post" action="/logout">
           <button class="dropdown-item" type="submit">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
