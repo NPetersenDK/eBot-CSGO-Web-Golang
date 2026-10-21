@@ -1,0 +1,135 @@
+# eBot stack: MySQL, Redis, the eBot bot, the Go panel and, optionally, the
+# legacy PHP panel. Both panels use the same MySQL database and the same Redis.
+#
+# Quick start, from this directory:
+#   cp ../.env.example .env        # then replace every change-me value
+#   docker compose up -d --build   # MySQL, Redis, bot and the Go panel
+#   docker compose --profile legacy up -d ebot-web-php   # optional PHP panel
+#
+# Every value below reads from deploy/.env, with the default after ":-".
+# The ebot-web service also reads deploy/.env through env_file. Its
+# environment section overrides the values that differ inside this stack
+# (hostnames, demo and log paths).
+
+name: ebot
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-root}
+      MYSQL_DATABASE: ${EBOT_DB_NAME:-ebotv3}
+      MYSQL_USER: ${EBOT_DB_USER:-ebot}
+      MYSQL_PASSWORD: ${EBOT_DB_PASSWORD:-change-me-32-chars-minimum}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # Not published on the host. Only the services in this file reach it.
+  # The stack runs without a Redis password, so keep EBOT_REDIS_PASSWORD empty.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  ebot-bot:
+    # Image of the eBot-CSGO bot (repository ../../eBot-CSGO). Build it there
+    # with: docker build -t ebot-csgo:latest . (or push it to a registry).
+    image: ${EBOT_BOT_IMAGE:-ebot-csgo:latest}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      # Game servers connect to the bot on this port.
+      - "${EBOT_BOT_PORT:-12360}:12360"
+    volumes:
+      # The bot writes demos and match logs here, the panel reads them.
+      - ${EBOT_DEMOS_DIR:-./demos}:/app/demos
+      - ${EBOT_LOGS_DIR:-./logs}:/app/logs
+      # The bot reads config/config.ini from its image. For this stack that file
+      # needs MYSQL_IP = "mysql", REDIS_HOST = "redis" and BOT_IP = "0.0.0.0".
+      # Uncomment the next line after you create ./bot/config.ini.
+      # - ./bot/config.ini:/app/config/config.ini:ro
+
+  ebot-web:
+    # The Go panel, built from the repository root Dockerfile.
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${EBOT_VERSION:-dev}
+    image: ebot-web:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      EBOT_DB_DSN: ""
+      EBOT_DB_HOST: mysql
+      EBOT_DB_PORT: "3306"
+      EBOT_DB_NAME: ${EBOT_DB_NAME:-ebotv3}
+      EBOT_DB_USER: ${EBOT_DB_USER:-ebot}
+      EBOT_DB_PASSWORD: ${EBOT_DB_PASSWORD:-change-me-32-chars-minimum}
+      EBOT_REDIS_ADDR: redis:6379
+      EBOT_REDIS_PASSWORD: ""
+      EBOT_DEMO_PATH: /demos
+      EBOT_LOG_MATCH_PATH: /logs/log_match
+      EBOT_LOG_MATCH_ADMIN_PATH: /logs/log_match_admin
+    ports:
+      - "${EBOT_WEB_PORT:-8080}:8080"
+    volumes:
+      - ${EBOT_DEMOS_DIR:-./demos}:/demos:ro
+      - ${EBOT_LOGS_DIR:-./logs}:/logs:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Legacy PHP panel (repository ../../eBot-CSGO-Web). Only starts with the
+  # "legacy" profile. Its schema setup runs on the first start, when the
+  # database has no sf_guard_user table. Run it once before the Go panel
+  # if the database is empty.
+  ebot-web-php:
+    # The image must serve HTTP on port 80. The Dockerfile in eBot-CSGO-Web
+    # only starts php-fpm, so put a web server in front of it.
+    image: ${EBOT_PHP_WEB_IMAGE:-ebot-web-php:latest}
+    profiles: ["legacy"]
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: ${EBOT_DB_NAME:-ebotv3}
+      MYSQL_USER: ${EBOT_DB_USER:-ebot}
+      MYSQL_PASSWORD: ${EBOT_DB_PASSWORD:-change-me-32-chars-minimum}
+      EBOT_ADMIN_EMAIL: ${EBOT_ADMIN_EMAIL:-admin@localhost}
+      EBOT_ADMIN_LOGIN: ${EBOT_ADMIN_USER:-admin}
+      EBOT_ADMIN_PASSWORD: ${EBOT_ADMIN_PASSWORD:-change-me}
+    ports:
+      - "${EBOT_PHP_WEB_PORT:-8081}:80"
+
+volumes:
+  mysql-data:
+  redis-data:

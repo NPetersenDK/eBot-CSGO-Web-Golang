@@ -1,0 +1,14 @@
+{{define "content"}}
+{{with .Data}}
+<div class="card narrow">
+  <h1>No access</h1>
+  <p class="muted">Your account has no role in this application. Send the details below to an administrator to get access.</p>
+  {{if .Username}}<div class="kv"><span>Username</span><strong>{{.Username}}</strong></div>{{end}}
+  {{if .Name}}<div class="kv"><span>Name</span><strong>{{.Name}}</strong></div>{{end}}
+  {{if .Email}}<div class="kv"><span>Email</span><strong>{{.Email}}</strong></div>{{end}}
+  <div class="kv"><span>Subject</span><strong>{{.Subject}}</strong></div>
+  <div class="kv"><span>Roles ({{.Claim}})</span><strong>{{if .Values}}{{join .Values ", "}}{{else}}none{{end}}</strong></div>
+  <a class="btn block" href="/auth/oidc/login">Try again</a>
+</div>
+{{end}}
+{{end}}

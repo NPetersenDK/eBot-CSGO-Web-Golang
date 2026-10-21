@@ -1,0 +1,9 @@
+apiVersion: v2
+name: ebot-web
+description: The eBot match panel (Go). One binary that serves the admin UI, the public match pages and the API.
+type: application
+version: 0.1.0
+# Helm cannot template Chart.yaml, so keep appVersion in step with the image
+# tag. The image tag defaults to appVersion when image.tag is empty.
+appVersion: "0.1.0"
+keywords: [ebot, csgo, match, game-server]

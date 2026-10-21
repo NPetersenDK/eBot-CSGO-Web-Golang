@@ -188,8 +188,13 @@ type MatchInput struct {
 	AutoStart        bool
 	AutoStartTime    int
 
-	// Maps are created in order. The first becomes the current map.
+	// Maps has exactly one entry: the current map ("tba" when the map is chosen
+	// in game). The bot creates the other maps of a series itself. Update
+	// renames the current map and leaves any other map alone.
 	Maps []MapInput
+	// Side is the starting side of the current map, "ct" or "t". Create picks
+	// one at random when it is empty.
+	Side string
 }
 
 type MapInput struct {

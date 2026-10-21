@@ -1,0 +1,105 @@
+{{define "actions"}}
+<div class="actions">
+  {{range .Actions}}
+  {{if .Command}}
+  <button type="button" class="btn sm {{.Style}}" data-command="{{.Command}}"{{if eq .Command "streamerready"}} data-streamer-ready="{{$.Match.ID}}"{{end}} data-match="{{$.Match.ID}}"{{if .Confirm}} data-confirm="Are you sure?"{{end}}{{if .Disabled}} disabled{{end}}>{{.Label}}</button>
+  {{else if .Href}}
+  <a class="btn sm {{.Style}}" href="{{.Href}}">{{.Label}}</a>
+  {{else if .Confirm}}
+  <details>
+    <summary class="btn sm {{.Style}}">{{.Label}}</summary>
+    <form method="post" action="{{.Path}}"><button class="btn sm danger" type="submit">Confirm: {{.Label}}</button></form>
+  </details>
+  {{else}}
+  <form method="post" action="{{.Path}}"><button class="btn sm {{.Style}}" type="submit">{{.Label}}</button></form>
+  {{end}}
+  {{end}}
+</div>
+{{end}}
+{{define "content"}}
+<div data-live="matches" data-live-reload>
+  <div class="page-head">
+    <h1>{{if .Data.Archived}}Archived matches{{else}}Matches{{end}}</h1>
+    <span class="spacer"></span>
+    <span class="badge muted" data-live-state>Live updates: connecting</span>
+    {{if .IsAdmin}}<a class="btn sm primary" href="/admin/matches/new">New match</a>{{end}}
+  </div>
+
+  <div class="stack">
+  <form class="card toolbar" method="get" action="/matches">
+    <label>Status
+      <select name="status">
+        <option value="current"{{if not .Data.Archived}} selected{{end}}>Current</option>
+        <option value="archived"{{if .Data.Archived}} selected{{end}}>Archived</option>
+      </select>
+    </label>
+    <label>Season
+      <select name="season">
+        <option value="">All seasons</option>
+        {{range .Data.Seasons}}<option value="{{.ID}}"{{if eq .ID $.Data.Season}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Team
+      <select name="team">
+        <option value="">All teams</option>
+        {{range .Data.Teams}}<option value="{{.ID}}"{{if eq .ID $.Data.Team}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Search
+      <input type="search" name="q" value="{{.Data.Query}}" maxlength="100" placeholder="Team name">
+    </label>
+    <button class="btn primary" type="submit">Search</button>
+    {{if or .Data.Season .Data.Team .Data.Query}}<a class="btn ghost" href="/matches{{if .Data.Archived}}?status=archived{{end}}">Reset filter</a>{{end}}
+  </form>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Team A</th>
+          <th class="num">Score</th>
+          <th>Team B</th>
+          <th>Map</th>
+          {{if .IsAdmin}}<th>Server</th>{{end}}
+          <th>Active</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Data.Rows}}
+        <tr class="clickable" data-match-id="{{.Match.ID}}">
+          {{with .Match}}
+          <td>#{{.ID}}</td>
+          <td>{{if .TeamAFlag}}<span class="muted mono">{{.TeamAFlag}}</span> {{end}}{{.TeamAName}}</td>
+          <td class="num"><strong>{{.ScoreA}} - {{.ScoreB}}</strong></td>
+          <td>{{if .TeamBFlag}}<span class="muted mono">{{.TeamBFlag}}</span> {{end}}{{.TeamBName}}</td>
+          <td>{{if .CurrentMap}}{{.CurrentMap.Name}}{{end}}</td>
+          {{if $.IsAdmin}}<td class="mono">{{.IP}}</td>{{end}}
+          <td>{{if .Enable}}{{if eq .Status 1}}<span class="badge warn">Starting</span>{{else}}<span class="badge ok">Yes</span>{{end}}{{else}}<span class="badge muted">No</span>{{end}}</td>
+          <td><span class="badge {{statusClass .Status}}" data-match-status="{{.ID}}">{{statusLabel .Status}}</span></td>
+          <td>
+            <div class="actions">
+              <a class="btn sm" href="/matches/{{.ID}}">Show</a>
+            </div>
+            {{end}}
+            {{if .Actions}}{{template "actions" .}}{{end}}
+          </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="{{if .IsAdmin}}9{{else}}8{{end}}" class="muted">No results found.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  </div>
+
+  <div class="pager">
+    {{if .Data.PrevURL}}<a class="btn sm" href="{{.Data.PrevURL}}">Previous</a>{{end}}
+    <span class="muted">Page {{.Data.Page.Page}} of {{.Data.Page.Pages}}</span>
+    {{if .Data.NextURL}}<a class="btn sm" href="{{.Data.NextURL}}">Next</a>{{end}}
+  </div>
+</div>
+{{end}}
+{{define "scripts"}}<script src="/static/live.js"></script>{{end}}

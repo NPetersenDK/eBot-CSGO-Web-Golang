@@ -1,0 +1,43 @@
+{{define "content"}}
+<div data-live="matches" data-live-reload>
+  <div class="page-head">
+    <h1>Matches in progress and upcoming matches</h1>
+    <span class="spacer"></span>
+    <span class="badge muted" data-live-state>Live updates: connecting</span>
+    <a class="btn sm" href="/matches">All matches</a>
+  </div>
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Team A</th>
+          <th class="num">Score</th>
+          <th>Team B</th>
+          <th>Map</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Data.Rows}}
+        {{with .Match}}
+        <tr class="clickable" data-match-id="{{.ID}}">
+          <td>#{{.ID}}</td>
+          <td>{{if .TeamAFlag}}<span class="muted mono">{{.TeamAFlag}}</span> {{end}}{{.TeamAName}}</td>
+          <td class="num"><strong>{{.ScoreA}} - {{.ScoreB}}</strong></td>
+          <td>{{if .TeamBFlag}}<span class="muted mono">{{.TeamBFlag}}</span> {{end}}{{.TeamBName}}</td>
+          <td>{{if .CurrentMap}}{{.CurrentMap.Name}}{{end}}</td>
+          <td><span class="badge {{statusClass .Status}}" data-match-status="{{.ID}}">{{statusLabel .Status}}</span></td>
+          <td><a class="btn sm" href="/matches/{{.ID}}">Show</a></td>
+        </tr>
+        {{end}}
+        {{else}}
+        <tr><td colspan="7" class="muted">No matches yet.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{end}}
+{{define "scripts"}}<script src="/static/live.js"></script>{{end}}

@@ -1,0 +1,1445 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "eBot-CSGO API",
+    "version": "0.1.0",
+    "description": "Drop-in REST API over the shared eBot MySQL database (`ebotv3`). Runs alongside the legacy Symfony 1.4 panel. Match creation is a pure DB write; the nodeJS bot polls for enabled matches with status=STARTING, so no bot integration is required. Authenticate every call (except /health and the docs) with the `X-API-Key` header."
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "This server"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "matches"
+    },
+    {
+      "name": "catalog"
+    },
+    {
+      "name": "system"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Liveness + DB reachability",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches": {
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "List matches",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filter by status code (0=not started, 1=starting, 13=end, 14=archived)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 500
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of matches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Match"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Create a match",
+        "description": "Inserts a `matchs` row plus one `maps` row per requested map. Set `start=true` to enable it immediately (status=STARTING) so the bot picks it up.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created match",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Match"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "description": "No free server available to start",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Get a match by id",
+        "responses": {
+          "200": {
+            "description": "Match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Match"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Delete a match",
+        "description": "Deletes the match; child rows (maps, players, rounds, ...) cascade.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/matches/{id}/start": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Start a match",
+        "description": "Assigns a free server (or the one already set), regenerates the auth key, and flips the match to enabled/STARTING.",
+        "responses": {
+          "200": {
+            "description": "Updated match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Match"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "No free server available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matches/{id}/archive": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Archive a match",
+        "responses": {
+          "200": {
+            "description": "Updated match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Match"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/matches/{id}/stop": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Stop a running match",
+        "description": "Sends eBot's admin stop command to the bot over Redis and waits until it releases the server. Defaults to the panel's \"Stop with Restart\": the game is restarted, enable goes to 0 and the match stays resettable. Pass restart=false for the plain stop. Requires REDIS_HOST.",
+        "parameters": [
+          {
+            "name": "restart",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Match"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Match is not running, or has no server"
+          },
+          "503": {
+            "description": "Live control disabled (no REDIS_HOST)"
+          },
+          "504": {
+            "description": "The bot did not release the match in time"
+          }
+        }
+      }
+    },
+    "/matches/{id}/reset": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Reset a stopped match",
+        "description": "Clears scores, per-map results and round history, and sets status back to 0. Database only; the match must be stopped and not finished.",
+        "responses": {
+          "200": {
+            "description": "Updated match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Match"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Only a stopped, unfinished match can be reset"
+          }
+        }
+      }
+    },
+    "/matches/{id}/restart": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Stop, reset and start a match again",
+        "description": "The whole play-it-again sequence in one call, on the same server. Sequenced server-side so a dropped connection cannot leave the match half-restarted. Requires REDIS_HOST.",
+        "responses": {
+          "200": {
+            "description": "Updated match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Match"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Another match is running on that server"
+          },
+          "503": {
+            "description": "Live control disabled (no REDIS_HOST)"
+          },
+          "504": {
+            "description": "The bot did not release the match in time"
+          }
+        }
+      }
+    },
+    "/matches/{id}/maps": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Maps of a match",
+        "description": "One row per map, with live score (score_1/score_2), current_side and rounds_played (= score_1 + score_2).",
+        "responses": {
+          "200": {
+            "description": "Array of maps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Map"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/matches/{id}/players": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        {
+          "name": "map_id",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": "Restrict to a single map."
+        }
+      ],
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Scoreboard",
+        "description": "Player stats for the match, ordered by points then kills. Filter to a map with ?map_id=.",
+        "responses": {
+          "200": {
+            "description": "Array of player stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlayerStat"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/matches/{id}/rounds": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        {
+          "name": "map_id",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": "Restrict to a single map."
+        }
+      ],
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Round-by-round results",
+        "description": "One row per completed round (chronological). round_id plus the running score_a/score_b tell you which round the match is on.",
+        "responses": {
+          "200": {
+            "description": "Array of round results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoundResult"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/matches/{id}/kills": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        {
+          "name": "map_id",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": "Restrict to a single map."
+        }
+      ],
+      "get": {
+        "tags": [
+          "matches"
+        ],
+        "summary": "Kill feed",
+        "description": "Every kill in the match (chronological). Filter to a map with ?map_id=.",
+        "responses": {
+          "200": {
+            "description": "Array of kills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Kill"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/servers": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "List servers",
+        "responses": {
+          "200": {
+            "description": "Array of servers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Server"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Add a server",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Server"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/servers/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Get a server by id",
+        "responses": {
+          "200": {
+            "description": "Server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Server"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Update a server",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Server"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Remove a server",
+        "description": "Deletes the server. Any match referencing it keeps existing; its server_id is set to NULL (FK ON DELETE SET NULL).",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/teams": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "List teams",
+        "responses": {
+          "200": {
+            "description": "Array of teams",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Team"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/seasons": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "List seasons",
+        "responses": {
+          "200": {
+            "description": "Array of seasons",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Season"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Invalid or missing API key",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          }
+        }
+      },
+      "Match": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "season_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "team_a": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "team_a_name": {
+            "type": "string"
+          },
+          "team_a_flag": {
+            "type": "string"
+          },
+          "team_b": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "team_b_name": {
+            "type": "string"
+          },
+          "team_b_flag": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "status_text": {
+            "type": "string"
+          },
+          "is_paused": {
+            "type": "boolean"
+          },
+          "score_a": {
+            "type": "integer"
+          },
+          "score_b": {
+            "type": "integer"
+          },
+          "max_round": {
+            "type": "integer"
+          },
+          "rules": {
+            "type": "string"
+          },
+          "map_selection_mode": {
+            "type": "string",
+            "enum": [
+              "bo2",
+              "bo3_modea",
+              "bo3_modeb",
+              "normal"
+            ]
+          },
+          "config_password": {
+            "type": "string"
+          },
+          "enable": {
+            "type": "boolean"
+          },
+          "server_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "ip": {
+            "type": "string"
+          },
+          "current_map": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "startdate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CreateMatchRequest": {
+        "type": "object",
+        "required": [
+          "rules"
+        ],
+        "properties": {
+          "team_a_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "When set, team name/flag are copied from the teams table."
+          },
+          "team_b_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "team_a_name": {
+            "type": "string"
+          },
+          "team_b_name": {
+            "type": "string"
+          },
+          "team_a_flag": {
+            "type": "string",
+            "description": "2-letter country code"
+          },
+          "team_b_flag": {
+            "type": "string"
+          },
+          "season_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "max_round": {
+            "type": "integer",
+            "default": 30
+          },
+          "rules": {
+            "type": "string",
+            "example": "esl5on5"
+          },
+          "map_selection_mode": {
+            "type": "string",
+            "enum": [
+              "bo2",
+              "bo3_modea",
+              "bo3_modeb",
+              "normal"
+            ],
+            "default": "normal"
+          },
+          "config_password": {
+            "type": "string"
+          },
+          "config_knife_round": {
+            "type": "boolean"
+          },
+          "config_ot": {
+            "type": "boolean"
+          },
+          "config_full_score": {
+            "type": "boolean"
+          },
+          "config_streamer": {
+            "type": "boolean"
+          },
+          "config_switch_auto": {
+            "type": "boolean"
+          },
+          "overtime_max_round": {
+            "type": "integer",
+            "nullable": true
+          },
+          "overtime_startmoney": {
+            "type": "integer",
+            "nullable": true
+          },
+          "maps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Map names; defaults to [\"tba\"].",
+            "example": [
+              "de_mirage"
+            ]
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "ct",
+              "t"
+            ],
+            "description": "First-map side; random when omitted."
+          },
+          "server_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "start": {
+            "type": "boolean",
+            "default": false,
+            "description": "Create enabled with status=STARTING; auto-picks a free server if server_id is omitted."
+          }
+        }
+      },
+      "Server": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "rcon": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "tv_ip": {
+            "type": "string"
+          }
+        }
+      },
+      "Map": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "match_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "map_name": {
+            "type": "string"
+          },
+          "score_1": {
+            "type": "integer"
+          },
+          "score_2": {
+            "type": "integer"
+          },
+          "current_side": {
+            "type": "string",
+            "enum": [
+              "ct",
+              "t"
+            ]
+          },
+          "status": {
+            "type": "integer"
+          },
+          "maps_for": {
+            "type": "string"
+          },
+          "nb_ot": {
+            "type": "integer"
+          },
+          "rounds_played": {
+            "type": "integer",
+            "description": "score_1 + score_2"
+          }
+        }
+      },
+      "PlayerStat": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "match_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "map_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "steamid": {
+            "type": "string"
+          },
+          "pseudo": {
+            "type": "string"
+          },
+          "team": {
+            "type": "string",
+            "enum": [
+              "a",
+              "b",
+              "other"
+            ]
+          },
+          "first_side": {
+            "type": "string"
+          },
+          "current_side": {
+            "type": "string"
+          },
+          "kills": {
+            "type": "integer"
+          },
+          "assists": {
+            "type": "integer"
+          },
+          "deaths": {
+            "type": "integer"
+          },
+          "points": {
+            "type": "integer"
+          },
+          "hs": {
+            "type": "integer"
+          },
+          "defuse": {
+            "type": "integer"
+          },
+          "bombe": {
+            "type": "integer"
+          },
+          "tk": {
+            "type": "integer"
+          },
+          "firstkill": {
+            "type": "integer"
+          },
+          "nb1": {
+            "type": "integer"
+          },
+          "nb2": {
+            "type": "integer"
+          },
+          "nb3": {
+            "type": "integer"
+          },
+          "nb4": {
+            "type": "integer"
+          },
+          "nb5": {
+            "type": "integer"
+          }
+        }
+      },
+      "RoundResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "match_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "map_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "round_id": {
+            "type": "integer"
+          },
+          "bomb_planted": {
+            "type": "boolean"
+          },
+          "bomb_defused": {
+            "type": "boolean"
+          },
+          "bomb_exploded": {
+            "type": "boolean"
+          },
+          "win_type": {
+            "type": "string",
+            "enum": [
+              "bombdefused",
+              "bombeexploded",
+              "normal",
+              "saved"
+            ]
+          },
+          "team_win": {
+            "type": "string",
+            "enum": [
+              "a",
+              "b"
+            ]
+          },
+          "ct_win": {
+            "type": "boolean"
+          },
+          "t_win": {
+            "type": "boolean"
+          },
+          "score_a": {
+            "type": "integer"
+          },
+          "score_b": {
+            "type": "integer"
+          },
+          "best_killer": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "best_killer_nb": {
+            "type": "integer"
+          }
+        }
+      },
+      "Kill": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "match_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "map_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "round_id": {
+            "type": "integer"
+          },
+          "killer_name": {
+            "type": "string"
+          },
+          "killer_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "killer_team": {
+            "type": "string"
+          },
+          "killed_name": {
+            "type": "string"
+          },
+          "killed_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "killed_team": {
+            "type": "string"
+          },
+          "weapon": {
+            "type": "string"
+          },
+          "headshot": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ServerRequest": {
+        "type": "object",
+        "required": [
+          "ip",
+          "rcon",
+          "hostname"
+        ],
+        "properties": {
+          "ip": {
+            "type": "string",
+            "example": "127.0.0.1:27015"
+          },
+          "rcon": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "tv_ip": {
+            "type": "string"
+          }
+        }
+      },
+      "Team": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shorthandle": {
+            "type": "string"
+          },
+          "flag": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          }
+        }
+      },
+      "Season": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "link": {
+            "type": "string"
+          },
+          "logo": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

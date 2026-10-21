@@ -106,4 +106,4 @@ API (WP-H): `/api/...`, header `X-API-Key`, keys from `EBOT_API_KEYS`.
 
 ## Current map
 
-`matchs.current_map` points at a row in `maps`. Create inserts the match, then one `maps` row per `MatchInput.Maps` entry, then sets `current_map` to the first one, all in one transaction. Lists show the current map and its score. The match view lists every map and marks the current one. `skipmap` moves it (the bot does that, the panel only sends the command).
+`matchs.current_map` points at a row in `maps`. Create inserts the match, then exactly one `maps` row (`MatchInput.Maps` has one entry, `"tba"` when the map is chosen in game, side from `MatchInput.Side` or random), then sets `current_map` to it, all in one transaction. The bot creates the other maps of a series itself. Update renames the current map and never adds or removes maps. Lists show the current map and its score. The match view lists every map and marks the current one. `skipmap` moves it (the bot does that, the panel only sends the command).

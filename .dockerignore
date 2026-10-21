@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+.dockerignore
+.env
+.env.*
+deploy
+README.md
+LICENSE
+/bin
+/server
+*.test

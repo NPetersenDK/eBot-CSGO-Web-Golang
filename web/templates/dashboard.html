@@ -1,0 +1,25 @@
+{{define "content"}}
+{{with .Data.Counts}}
+<div class="page-head"><h1>Dashboard</h1></div>
+<p class="muted">Manage matches, servers, teams and seasons from here.</p>
+<div class="grid2">
+  <div class="card">
+    <h2>Matches</h2>
+    <div class="kv"><span>Total</span><strong>{{.Matches}}</strong></div>
+    <div class="kv"><span>In progress</span><strong>{{.Running}}</strong></div>
+    <div class="kv"><span>Archived</span><strong>{{.Archived}}</strong></div>
+    <div class="actions">
+      <a class="btn sm" href="/matches">Matches</a>
+      {{if $.IsAdmin}}<a class="btn sm primary" href="/admin/matches/new">New match</a>{{end}}
+    </div>
+  </div>
+  <div class="card">
+    <h2>Setup</h2>
+    <div class="kv"><span>Servers</span><a href="/admin/servers"><strong>{{.Servers}}</strong></a></div>
+    <div class="kv"><span>Teams</span><a href="/admin/teams"><strong>{{.Teams}}</strong></a></div>
+    <div class="kv"><span>Seasons</span><a href="/admin/seasons"><strong>{{.Seasons}}</strong></a></div>
+    {{if $.IsAdmin}}<div class="kv"><span>Users</span><a href="/admin/users"><strong>{{.Users}}</strong></a></div>{{end}}
+  </div>
+</div>
+{{end}}
+{{end}}

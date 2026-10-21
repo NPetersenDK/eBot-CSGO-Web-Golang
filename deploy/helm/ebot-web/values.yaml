@@ -1,0 +1,107 @@
+# ebot-web chart values. Secrets are never set here: they live in a Secret
+# that you create (see secrets below). Non-secret settings go in env.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/your-org/ebot-web
+  # Empty means Chart.AppVersion. Pin a release tag in production.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 1
+
+# Non-secret environment variables, one per config key (see README).
+# Do not put passwords, keys, DSNs or API keys here. The chart fails to
+# render if it finds one. Example:
+#   EBOT_DB_HOST: mysql.ebot.svc.cluster.local
+#   EBOT_REDIS_ADDR: redis.ebot.svc.cluster.local:6379
+#   EBOT_MODE: net
+env:
+  EBOT_TITLE: eBot
+  EBOT_MODE: net
+
+# A Secret in the release namespace with the keys below. Create it yourself,
+# for example with kubectl create secret generic ebot-web --from-literal=...
+# Keys with an empty name are skipped. optional keys can be missing.
+secrets:
+  existingSecret: ebot-web
+  # EBOT_SESSION_KEY. Required, at least 32 bytes.
+  sessionKey: session-key
+  # EBOT_DB_PASSWORD. Required unless dbDsn is set.
+  dbPassword: db-password
+  # EBOT_DB_DSN, the full MySQL DSN. When set, dbPassword is not used.
+  dbDsn: ""
+  # Optional.
+  redisPassword: redis-password
+  oidcClientSecret: oidc-client-secret
+  adminPassword: admin-password
+  apiKeys: api-keys
+
+# Mounted read-only at mountPath. Set existingClaim (a PersistentVolumeClaim in
+# the release namespace) or hostPath (a directory on the node). Mounted at
+# /demos and /logs, the paths the panel reads by default.
+volumes:
+  demos:
+    enabled: false
+    existingClaim: ""
+    hostPath: ""
+    mountPath: /demos
+  logs:
+    enabled: false
+    existingClaim: ""
+    hostPath: ""
+    mountPath: /logs
+
+# Pod-level hostAliases, e.g. to pin an OIDC issuer host to an internal IP:
+#   - ip: 10.0.0.10
+#     hostnames: [sso.example.org]
+hostAliases: []
+
+podAnnotations: {}
+podLabels: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: ebot.example.org
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: ebot-web-tls
+  #    hosts: [ebot.example.org]
+
+# Gateway API. Needs the HTTPRoute CRD and a Gateway that accepts routes.
+httpRoute:
+  enabled: false
+  parentRefs:
+    - name: gateway
+  hostnames: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,19 @@
+ebot-web {{ .Chart.AppVersion }} is deployed as release {{ .Release.Name }}.
+
+The Secret {{ .Values.secrets.existingSecret | quote }} must exist in this namespace
+and hold at least the key {{ .Values.secrets.sessionKey | quote }} (EBOT_SESSION_KEY, 32+ bytes)
+and the database key ({{ .Values.secrets.dbPassword | quote }} or the DSN key {{ .Values.secrets.dbDsn | quote }}).
+Without them the pod does not start.
+
+{{- if .Values.ingress.enabled }}
+Open the panel at:
+{{- range .Values.ingress.hosts }}
+  https://{{ .host }}/
+{{- end }}
+{{- else if .Values.httpRoute.enabled }}
+Open the panel through the HTTPRoute hostnames: {{ join ", " .Values.httpRoute.hostnames }}
+{{- else }}
+Port-forward to reach the panel:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ebot-web.fullname" . }} 8080:{{ .Values.service.port }}
+  then open http://localhost:8080/
+{{- end }}

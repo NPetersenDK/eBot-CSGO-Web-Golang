@@ -1,0 +1,60 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <h1>{{.Heading}}</h1>
+  <span class="spacer"></span>
+  <a class="btn ghost" href="{{.Back}}">Back to list</a>
+</div>
+<form class="card" method="post" action="{{.Action}}">
+  {{if .Error}}<div class="flash err" role="alert">{{.Error}}</div>{{end}}
+  {{if .Note}}<p class="hint">{{.Note}}</p>{{end}}
+  <div class="form-grid">
+    {{range .Fields}}
+    {{if eq .Type "checkbox"}}
+    <div>
+      <label class="switch"><input type="checkbox" name="{{.Name}}" value="1"{{if .Checked}} checked{{end}}> {{.Label}}</label>
+      {{if .Help}}<div class="hint">{{.Help}}</div>{{end}}
+    </div>
+    {{else}}
+    <label>
+      <span>{{.Label}}{{if .Required}} *{{end}}</span>
+      {{if eq .Type "select"}}
+      <select name="{{.Name}}"{{if .Required}} required{{end}}>
+        {{if not .Required}}<option value=""></option>{{else if not .Value}}<option value="">Select...</option>{{end}}
+        {{range .Choices}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+      </select>
+      {{else if eq .Type "multiselect"}}
+      <select name="{{.Name}}" multiple size="8">
+        {{range .Choices}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+      </select>
+      {{else if eq .Type "textarea"}}
+      <textarea name="{{.Name}}" rows="5"{{if .Max}} maxlength="{{.Max}}"{{end}}{{if .Required}} required{{end}}>{{.Value}}</textarea>
+      {{else if eq .Type "password"}}
+      <input type="password" name="{{.Name}}" autocomplete="new-password"{{if .Max}} maxlength="{{.Max}}"{{end}}{{if .Required}} required{{end}}>
+      {{else if eq .Type "number"}}
+      <input type="number" name="{{.Name}}" value="{{.Value}}" step="1"{{if .Required}} required{{end}}>
+      {{else}}
+      <input type="text" name="{{.Name}}" value="{{.Value}}"{{if .Max}} maxlength="{{.Max}}"{{end}}{{if .Required}} required{{end}}>
+      {{end}}
+      {{if .Help}}<span class="hint">{{.Help}}</span>{{end}}
+      {{if .Error}}<span class="field-error">{{.Error}}</span>{{end}}
+    </label>
+    {{end}}
+    {{end}}
+  </div>
+  <div class="actions">
+    <button class="btn primary" type="submit">{{.Submit}}</button>
+    <a class="btn ghost" href="{{.Back}}">Cancel</a>
+  </div>
+</form>
+{{if .DeleteURL}}
+<details class="advanced card">
+  <summary>Delete</summary>
+  <form method="post" action="{{.DeleteURL}}">
+    <p class="hint">{{.DeleteText}}</p>
+    <button class="btn danger" type="submit">Yes, delete</button>
+  </form>
+</details>
+{{end}}
+{{end}}
+{{end}}

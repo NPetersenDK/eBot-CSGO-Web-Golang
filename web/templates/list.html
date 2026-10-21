@@ -1,0 +1,56 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <h1>{{.Heading}}</h1>
+  <span class="spacer"></span>
+  {{if $.IsAdmin}}<a class="btn primary" href="/admin/{{.Slug}}/new">{{.NewLabel}}</a>{{end}}
+</div>
+{{if .Note}}<p class="hint">{{.Note}}</p>{{end}}
+<div class="card table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        {{range .Columns}}<th>{{.}}</th>{{end}}
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{$slug := .Slug}}
+      {{range .Rows}}
+      <tr>
+        {{range .Cells}}
+        <td>
+          {{if .Link}}<a href="{{.Link}}" target="_blank" rel="noopener noreferrer">{{.Text}}</a>
+          {{else if .Badge}}<span class="badge {{.Badge}}{{if .Mono}} mono{{end}}">{{.Text}}</span>
+          {{else if .Mono}}<span class="mono">{{.Text}}</span>
+          {{else}}{{.Text}}{{end}}
+        </td>
+        {{end}}
+        <td>
+          {{if $.IsAdmin}}
+          <div class="actions">
+            {{if .CanDeactivate}}
+            <form method="post" action="/admin/{{$slug}}/{{.ID}}/deactivate"><button class="btn sm" type="submit">Deactivate</button></form>
+            {{end}}
+            <a class="btn sm" href="/admin/{{$slug}}/{{.ID}}/edit">Edit</a>
+            {{if .CanDelete}}
+            <details class="advanced">
+              <summary class="btn sm ghost danger">Delete</summary>
+              <form method="post" action="/admin/{{$slug}}/{{.ID}}/delete">
+                <p class="hint">{{.DeleteText}}</p>
+                <button class="btn sm danger" type="submit">Yes, delete</button>
+              </form>
+            </details>
+            {{end}}
+          </div>
+          {{end}}
+        </td>
+      </tr>
+      {{else}}
+      <tr><td colspan="{{add (len .Columns) 1}}" class="muted">{{.Empty}}</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+{{end}}

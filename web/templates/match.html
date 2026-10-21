@@ -1,0 +1,203 @@
+{{define "actions"}}
+<div class="actions">
+  {{range .Actions}}
+  {{if .Command}}
+  <button type="button" class="btn sm {{.Style}}" data-command="{{.Command}}"{{if eq .Command "streamerready"}} data-streamer-ready="{{$.Match.ID}}"{{end}} data-match="{{$.Match.ID}}"{{if .Confirm}} data-confirm="Are you sure?"{{end}}{{if .Disabled}} disabled{{end}}>{{.Label}}</button>
+  {{else if .Href}}
+  <a class="btn sm {{.Style}}" href="{{.Href}}">{{.Label}}</a>
+  {{else if .NeedsServer}}
+  <form class="row wrap" method="post" action="{{.Path}}">
+    <select name="server_id" aria-label="Server">
+      <option value="">Random free server</option>
+      {{range $.FreeServers}}<option value="{{.ID}}">{{if .Hostname}}{{.Hostname}} - {{end}}{{.IP}}</option>{{end}}
+    </select>
+    <button class="btn sm {{.Style}}" type="submit">{{.Label}}</button>
+  </form>
+  {{else if .Confirm}}
+  <details>
+    <summary class="btn sm {{.Style}}">{{.Label}}</summary>
+    <form method="post" action="{{.Path}}"><button class="btn sm danger" type="submit">Confirm: {{.Label}}</button></form>
+  </details>
+  {{else}}
+  <form method="post" action="{{.Path}}"><button class="btn sm {{.Style}}" type="submit">{{.Label}}</button></form>
+  {{end}}
+  {{end}}
+</div>
+{{end}}
+
+{{define "playertable"}}
+<div class="table-wrap">
+<table class="table compact">
+  <thead>
+    <tr>
+      <th>Nickname</th>
+      <th class="num">Kills</th><th class="num">Assists</th><th class="num">Deaths</th><th class="num">K/D</th>
+      <th class="num">HS</th><th class="num">HS%</th><th class="num">Points</th>
+      <th class="num">First kills</th><th class="num">2K</th><th class="num">3K</th><th class="num">4K</th><th class="num">5K</th>
+      <th class="num">Clutches</th><th class="num">Bombs</th><th class="num">Defuses</th><th class="num">TK</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .}}
+    <tr>
+      <td>{{.Nickname}}</td>
+      <td class="num">{{.Kills}}</td><td class="num">{{.Assists}}</td><td class="num">{{.Deaths}}</td><td class="num">{{.KD}}</td>
+      <td class="num">{{.Headshots}}</td><td class="num">{{.HSPct}}</td><td class="num">{{.Points}}</td>
+      <td class="num">{{.FirstKills}}</td><td class="num">{{.Rounds2K}}</td><td class="num">{{.Rounds3K}}</td><td class="num">{{.Rounds4K}}</td><td class="num">{{.Rounds5K}}</td>
+      <td class="num">{{.Clutchs}}</td><td class="num">{{.Bombs}}</td><td class="num">{{.Defuses}}</td><td class="num">{{.TeamKills}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="17" class="muted">No players.</td></tr>
+    {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+
+{{define "content"}}
+{{with .Data}}
+<div data-live="matches" data-live-reload class="stack" data-match-id="{{.Match.ID}}">
+  <div class="page-head">
+    <h1>Match #{{.Match.ID}}</h1>
+    <span class="badge {{statusClass .Match.Status}}" data-match-status="{{.Match.ID}}">{{statusLabel .Match.Status}}</span>
+    {{if .Match.IsPaused}}<span class="badge warn">Paused</span>{{end}}
+    <span class="spacer"></span>
+    <span class="badge muted" data-live-state>Live updates: connecting</span>
+    <a class="btn sm" href="/matches">Back to matches</a>
+  </div>
+
+  {{if .ShowHostWarn}}
+  <div class="flash warn" role="alert">This server was added by hostname. The bot cannot control it, so the buttons and the console will not work. Add the server again as ip:port.</div>
+  {{end}}
+
+  <div class="card">
+    <div class="scoreboard">
+      <div class="team">{{if .Match.TeamAFlag}}<span class="muted mono">{{.Match.TeamAFlag}}</span> {{end}}{{.Match.TeamAName}}</div>
+      <div class="score">{{.Match.ScoreA}} - {{.Match.ScoreB}}</div>
+      <div class="team">{{.Match.TeamBName}}{{if .Match.TeamBFlag}} <span class="muted mono">{{.Match.TeamBFlag}}</span>{{end}}</div>
+    </div>
+  </div>
+
+  {{if $.IsAdmin}}
+  <div class="card">
+    <h2>Controls</h2>
+    {{template "actions" .}}
+    <div class="row wrap">
+      {{if not .Match.Enable}}<a class="btn sm" href="/admin/matches/{{.Match.ID}}/edit">Edit match</a>{{end}}
+      <a class="btn sm" href="/admin/matches/{{.Match.ID}}/scores">Edit scores</a>
+      <a class="btn sm" href="/admin/matches/{{.Match.ID}}/log">Match log</a>
+      <span class="muted" data-command-result role="status"></span>
+    </div>
+    {{if and (not .Match.Enable) (eq .Match.Status 0) .FreeServers}}
+    <form class="row wrap" method="post" action="/admin/matches/{{.Match.ID}}/assign-server">
+      <select name="server_id" aria-label="Server">
+        {{range .FreeServers}}<option value="{{.ID}}"{{if $.Data.Match.ServerID}}{{if eq .ID (deref $.Data.Match.ServerID)}} selected{{end}}{{end}}>{{if .Hostname}}{{.Hostname}} - {{end}}{{.IP}}</option>{{end}}
+      </select>
+      <button class="btn sm" type="submit">Assign server</button>
+    </form>
+    {{end}}
+  </div>
+  {{end}}
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Match settings</h2>
+      <div class="kv"><span>Configuration file</span><b>{{.Match.Rules}}</b></div>
+      <div class="kv"><span>Max rounds</span><b>MR{{.Match.MaxRound}}</b></div>
+      {{if $.IsAdmin}}<div class="kv"><span>Password</span><b class="mono">{{.Match.ConfigPassword}}</b></div>{{end}}
+      <div class="kv"><span>Series</span><b>{{.Match.MapSelectionMode}}</b></div>
+      <div class="kv"><span>Map</span><b>{{if .Match.CurrentMap}}{{.Match.CurrentMap.Name}}{{end}}</b></div>
+      <div class="kv"><span>Active</span><b>{{if .Match.Enable}}Yes{{else}}No{{end}}</b></div>
+      <div class="kv"><span>Play all rounds</span><b>{{if .Match.ConfigFullScore}}Yes{{else}}No{{end}}</b></div>
+      <div class="kv"><span>Streamer ready</span><b>{{if .Match.ConfigStreamer}}Yes{{else}}No{{end}}</b></div>
+      <div class="kv"><span>Overtime</span><b>{{if .Match.ConfigOT}}Yes{{else}}No{{end}}</b></div>
+      <div class="kv"><span>Knife round</span><b>{{if .Match.ConfigKnifeRound}}Yes{{else}}No{{end}}</b></div>
+      <div class="kv"><span>Switch sides automatically</span><b>{{if .Match.ConfigSwitchAuto}}Yes{{else}}No{{end}}</b></div>
+    </div>
+    <div class="card">
+      <h2>Match details</h2>
+      <div class="kv"><span>Score</span><b>{{.Match.TeamAName}} ({{.Match.ScoreA}}) - ({{.Match.ScoreB}}) {{.Match.TeamBName}}</b></div>
+      <div class="kv"><span>Played rounds</span><b>{{.PlayedRounds}}</b></div>
+      <div class="kv"><span>Game server</span><b class="mono">{{if .ServerAddr}}{{.ServerAddr}}{{else}}-{{end}}</b></div>
+      {{if .Match.StartDate}}<div class="kv"><span>Start date</span><b>{{datetime .Match.StartDate}}</b></div>{{end}}
+    </div>
+  </div>
+
+  {{range .Maps}}
+  <div class="card">
+    <div class="page-head">
+      <h2>{{.Map.Name}}</h2>
+      {{if .Current}}<span class="badge accent">Current map</span>{{end}}
+      <span class="badge muted">{{statusLabel .Map.Status}}</span>
+      <span class="spacer"></span>
+      <b class="score">{{.Map.Score1}} - {{.Map.Score2}}</b>
+      {{if .DemoURL}}<a class="btn sm" href="{{.DemoURL}}">Download demo</a>{{end}}
+    </div>
+    {{if .Scores}}
+    <table class="table compact">
+      <thead><tr><th></th><th class="num">{{$.Data.Match.TeamAName}}</th><th class="num">{{$.Data.Match.TeamBName}}</th></tr></thead>
+      <tbody>
+        {{range .Scores}}
+        {{if ne .Type "normal"}}<tr><th colspan="3">Overtime</th></tr>{{end}}
+        <tr><td>First side</td><td class="num">{{.Score1Side1}}</td><td class="num">{{.Score2Side1}}</td></tr>
+        <tr><td>Second side</td><td class="num">{{.Score1Side2}}</td><td class="num">{{.Score2Side2}}</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{end}}
+
+    {{if or .TeamA .TeamB .Others}}
+    <h3>{{$.Data.Match.TeamAName}}</h3>
+    {{template "playertable" .TeamA}}
+    <h3>{{$.Data.Match.TeamBName}}</h3>
+    {{template "playertable" .TeamB}}
+    {{if .Others}}<h3>Spectators</h3>{{template "playertable" .Others}}{{end}}
+    {{end}}
+
+    {{if .Rounds}}
+    <details>
+      <summary class="muted">Round summaries ({{len .Rounds}})</summary>
+      <div class="table-wrap">
+      <table class="table compact">
+        <thead>
+          <tr><th class="num">Round</th><th class="num">{{$.Data.Match.TeamAName}}</th><th class="num">{{$.Data.Match.TeamBName}}</th><th>Won by</th><th>Win type</th><th>Bomb</th>{{if $.IsAdmin}}<th></th>{{end}}</tr>
+        </thead>
+        <tbody>
+          {{range .Rounds}}
+          <tr>
+            <td class="num">{{.RoundID}}</td><td class="num">{{.ScoreA}}</td><td class="num">{{.ScoreB}}</td>
+            <td>{{if eq .TeamWin "a"}}{{$.Data.Match.TeamAName}}{{else}}{{$.Data.Match.TeamBName}}{{end}} ({{if .CTWin}}CT{{else if .TWin}}T{{end}})</td>
+            <td>{{.WinType}}</td>
+            <td>{{if .BombExploded}}Exploded{{else if .BombDefused}}Defused{{else if .BombPlanted}}Planted{{end}}</td>
+            {{if $.IsAdmin}}<td>{{if $.Data.Match.Enable}}<button type="button" class="btn sm" data-command="goBackRounds" data-arg="{{.RoundID}}" data-match="{{$.Data.Match.ID}}" data-confirm="Reload the server to the start of round {{add .RoundID 1}}?">Reload to start of round {{add .RoundID 1}}</button>{{end}}</td>{{end}}
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+      </div>
+    </details>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="card muted">No maps.</div>
+  {{end}}
+
+  {{if $.IsAdmin}}
+  <div class="card" id="console">
+    <h2>RCON console</h2>
+    <pre class="console" data-console="{{.Match.ID}}"></pre>
+    <form class="row" method="post" action="/admin/matches/{{.Match.ID}}/command" data-rcon-form="{{.Match.ID}}">
+      <input type="hidden" name="action" value="executeCommand">
+      <input class="grow" name="arg" autocomplete="off" maxlength="500" placeholder="RCON command" aria-label="RCON command">
+      <button class="btn primary" type="submit">Send</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Logger</h2>
+    <pre class="console" data-logger="{{.Match.ID}}"></pre>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{end}}
+{{define "scripts"}}<script src="/static/live.js"></script>{{end}}
