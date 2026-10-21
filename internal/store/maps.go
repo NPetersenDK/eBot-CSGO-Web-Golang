@@ -203,6 +203,10 @@ func (s *Store) ListPlayers(ctx context.Context, matchID, mapID int64) ([]Player
 		return nil, err
 	}
 	defer rows.Close()
+	return scanPlayers(rows)
+}
+
+func scanPlayers(rows *sql.Rows) ([]Player, error) {
 	out := []Player{}
 	for rows.Next() {
 		var p Player

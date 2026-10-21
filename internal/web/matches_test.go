@@ -136,6 +136,23 @@ func (f *fakeMatchStore) ListPlayerStats(_ context.Context, season int64, limit 
 	return list, nil
 }
 
+func (f *fakeMatchStore) ListPlayerMatches(_ context.Context, steamID string) ([]store.PlayerMatch, error) {
+	if steamID != "7656" {
+		return nil, store.ErrNotFound
+	}
+	mk := func(id, matchID int64, nick, teamA, teamB, team string, kills, deaths int) store.PlayerMatch {
+		return store.PlayerMatch{
+			Player:    store.Player{ID: id, MatchID: matchID, SteamID: "7656", Nickname: nick, Team: team, Kills: kills, Deaths: deaths, Assists: 1, Headshots: kills / 2, Points: kills + 2, Clutch1v1: 1, Clutch1v2: 1, Rounds2K: 2},
+			TeamAName: teamA, TeamBName: teamB, MapName: "de_inferno", Score1: 13, Score2: 3,
+		}
+	}
+	return []store.PlayerMatch{
+		mk(30, 7, "new name", "Alpha", "Bravo", "b", 10, 5),
+		mk(20, 6, "old name", "Alpha", "Bravo", "a", 20, 10),
+		mk(10, 5, "old name", "Alpha", "Cee", "a", 30, 15),
+	}, nil
+}
+
 func (f *fakeMatchStore) GlobalStats(context.Context) (store.GlobalStats, error) {
 	return store.GlobalStats{Kills: 200, Headshots: 50, InProgress: 1, NotStarted: 2, Finished: 7, Servers: 3}, nil
 }
@@ -779,7 +796,7 @@ func TestMatchPagesRenderInLayout(t *testing.T) {
 		t.Fatalf("view = %d %s", rec.Code, rec.Body.String())
 	}
 	body = rec.Body.String()
-	for _, want := range []string{"Match #5", "de_dust2", "/matches/5/demo/10", "alice", "Current map", "tv.example.com:27020"} {
+	for _, want := range []string{"Match #5", "de_dust2", "/matches/5/demo/10", "alice", "tv.example.com:27020"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("view missing %q", want)
 		}
@@ -931,5 +948,87 @@ func TestHeadshotRate(t *testing.T) {
 	}
 	if (store.GlobalStats{InProgress: 1, NotStarted: 2, Finished: 3}).Matches() != 6 {
 		t.Error("matches total")
+	}
+}
+
+func TestPlayerPage(t *testing.T) {
+	e := newMatchTestEnv(t)
+
+	rec := e.do("GET", "/stats/players/7656", "", nil)
+	if rec.Code != 200 {
+		t.Fatalf("player = %d %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"new name", "Also played as: old name", "Totals for all 3 maps", ">60<", "#7", "#5", `name="row" value="30"`, "Show selected", "/static/table.js"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("player page missing %q", want)
+		}
+	}
+	// The team and result are shown from the player's side: team b won 3 - 13 here.
+	if !strings.Contains(body, "3 - 13") || !strings.Contains(body, "13 - 3") {
+		t.Error("result must be oriented to the player's team")
+	}
+
+	rec = e.do("GET", "/stats/players/7656?row=20&row=30&row=abc&row=999", "", nil)
+	body = rec.Body.String()
+	if !strings.Contains(body, "Totals for 2 of 3 maps") || !strings.Contains(body, ">30<") {
+		t.Errorf("filtered totals wrong: %s", body)
+	}
+	if !strings.Contains(body, `value="20" checked`) || !strings.Contains(body, `value="30" checked`) || strings.Contains(body, `value="10" checked`) {
+		t.Error("picked maps must stay ticked and others not")
+	}
+
+	// Unknown picks fall back to everything.
+	rec = e.do("GET", "/stats/players/7656?row=999", "", nil)
+	if !strings.Contains(rec.Body.String(), "Totals for all 3 maps") {
+		t.Error("an unknown pick must show all maps")
+	}
+
+	for _, p := range []string{"/stats/players/0000", "/stats/players/%20"} {
+		if rec := e.do("GET", p, "", nil); rec.Code != 404 {
+			t.Errorf("%s = %d, want 404", p, rec.Code)
+		}
+	}
+}
+
+func TestPlayersAreLinked(t *testing.T) {
+	e := newMatchTestEnv(t)
+	for _, p := range []string{"/", "/stats"} {
+		if body := e.do("GET", p, "", nil).Body.String(); !strings.Contains(body, `href="/stats/players/1"`) {
+			t.Errorf("%s does not link players", p)
+		}
+	}
+}
+
+func TestCurrentMapBadge(t *testing.T) {
+	e := newMatchTestEnv(t)
+	count := func() int { return strings.Count(e.do("GET", "/matches/6", "admin", nil).Body.String(), "Current map") }
+
+	// One map: nothing to mark.
+	if n := count(); n != 0 {
+		t.Fatalf("a single map match shows the badge %d times", n)
+	}
+
+	// A series that is still going: the badge marks the map in play, once.
+	e.st.maps[6] = []store.Map{{ID: 11, MatchID: 6, Name: "de_mirage"}, {ID: 12, MatchID: 6, Name: "de_nuke"}}
+	for i := range e.st.matches {
+		if e.st.matches[i].ID == 6 {
+			cur := int64(12)
+			e.st.matches[i].CurrentMapID = &cur
+			e.st.matches[i].Status = store.StatusSecondSide
+		}
+	}
+	if n := count(); n != 1 {
+		t.Fatalf("a running series shows the badge %d times, want 1", n)
+	}
+
+	// Once it is over the map in play means nothing.
+	for i := range e.st.matches {
+		if e.st.matches[i].ID == 6 {
+			e.st.matches[i].Status = store.StatusEndMatch
+		}
+	}
+	if n := count(); n != 0 {
+		t.Fatalf("a finished match shows the badge %d times", n)
 	}
 }

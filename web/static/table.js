@@ -4,9 +4,17 @@
 // Markup inside the wrapper: table[data-sortable], input[data-search],
 // select[data-page-size] (0 means all), [data-info] and [data-pager].
 // A select[data-submit-on-change] submits its form when it changes.
+// Buttons with data-check="all" or "none" tick or clear the checkboxes of their form.
 (() => {
   for (const sel of document.querySelectorAll("select[data-submit-on-change]")) {
     sel.addEventListener("change", () => sel.form && sel.form.submit());
+  }
+
+  for (const btn of document.querySelectorAll("button[data-check]")) {
+    btn.addEventListener("click", () => {
+      const on = btn.getAttribute("data-check") === "all";
+      for (const box of btn.closest("form").querySelectorAll('input[type="checkbox"]')) box.checked = on;
+    });
   }
 
   const number = (text) => {

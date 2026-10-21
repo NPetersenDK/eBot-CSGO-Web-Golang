@@ -153,3 +153,57 @@ func mustInt(t *testing.T, s *Store, q string) int64 {
 	}
 	return n
 }
+
+func TestListPlayerMatches(t *testing.T) {
+	s := matchesTestStore(t)
+	ctx := context.Background()
+
+	a := createWithMaps(t, s, "de_dust2")
+	b := createWithMaps(t, s, "de_mirage")
+	mapA, _ := s.ListMaps(ctx, a)
+	mapB, _ := s.ListMaps(ctx, b)
+	mustExec(t, s, "UPDATE matchs SET team_a_name = 'Alpha', team_b_name = 'Bravo' WHERE id IN (?, ?)", a, b)
+	mustExec(t, s, "UPDATE maps SET score_1 = 13, score_2 = 3 WHERE id = ?", mapA[0].ID)
+	mustExec(t, s, "UPDATE maps SET score_1 = 5, score_2 = 13 WHERE id = ?", mapB[0].ID)
+
+	ins := `INSERT INTO players (match_id, map_id, steamid, pseudo, team, nb_kill, death, nb1, nb2kill, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, 1, 2, NOW(), NOW())`
+	mustExec(t, s, ins, a, mapA[0].ID, "7656", "first", "a", 10, 4)
+	mustExec(t, s, ins, b, mapB[0].ID, "7656", "second", "b", 6, 8)
+	mustExec(t, s, ins, a, mapA[0].ID, "7656", "spectating", "other", 99, 0)
+	mustExec(t, s, ins, a, mapA[0].ID, "1111", "someone else", "a", 1, 1)
+
+	got, err := s.ListPlayerMatches(ctx, "7656")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("rows = %d, want 2 (no spectator rows, no other players): %+v", len(got), got)
+	}
+	if got[0].MatchID != b || got[1].MatchID != a {
+		t.Errorf("newest match first: %d then %d", got[0].MatchID, got[1].MatchID)
+	}
+	first := got[1]
+	if first.MapName != "de_dust2" || first.OwnTeam() != "Alpha" || first.Opponent() != "Bravo" || first.Result() != "13 - 3" || first.Date.IsZero() {
+		t.Errorf("match a: %+v", first)
+	}
+	// Team b: the result is turned around so the player's team comes first.
+	second := got[0]
+	if second.OwnTeam() != "Bravo" || second.Opponent() != "Alpha" || second.Result() != "13 - 5" {
+		t.Errorf("match b: %s vs %s, %s", second.OwnTeam(), second.Opponent(), second.Result())
+	}
+	if got[0].Nickname != "second" {
+		t.Errorf("latest name: %q", got[0].Nickname)
+	}
+
+	tot := SumPlayerMatches(got)
+	if tot.Maps != 2 || tot.Kills != 16 || tot.Deaths != 12 || tot.Clutch[0] != 2 || tot.MultiKills[1] != 4 || tot.KD() != "1.33" {
+		t.Errorf("totals: %+v kd=%s", tot, tot.KD())
+	}
+
+	for _, id := range []string{"", "nobody"} {
+		if _, err := s.ListPlayerMatches(ctx, id); err != ErrNotFound {
+			t.Errorf("%q: %v", id, err)
+		}
+	}
+}

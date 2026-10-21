@@ -49,6 +49,7 @@ type matchStore interface {
 	ListSeasons(ctx context.Context) ([]store.Season, error)
 	GlobalStats(ctx context.Context) (store.GlobalStats, error)
 	ListPlayerStats(ctx context.Context, seasonID int64, limit int) ([]store.PlayerStat, error)
+	ListPlayerMatches(ctx context.Context, steamID string) ([]store.PlayerMatch, error)
 }
 
 // commandSender delivers a live command to the bot.
@@ -78,6 +79,7 @@ func (h *matchHandlers) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /matches", h.list)
 	mux.HandleFunc("GET /matches/{id}", h.view)
 	mux.HandleFunc("GET /stats", h.stats)
+	mux.HandleFunc("GET /stats/players/{steamid}", h.player)
 
 	mux.Handle("GET /admin/matches/new", admin(h.newForm))
 	mux.Handle("POST /admin/matches", admin(h.create))

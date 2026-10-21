@@ -52,7 +52,7 @@
         </thead>
         <tbody>
           {{range .Data.Players}}
-          <tr><td>{{.Name}}</td><td class="num">{{.Kills}}</td><td class="num">{{.Deaths}}</td><td class="num">{{.KD}}</td><td class="num">{{.HSRate}}</td><td class="num">{{.Points}}</td></tr>
+          <tr><td>{{if .SteamID}}<a href="/stats/players/{{.SteamID}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td><td class="num">{{.Kills}}</td><td class="num">{{.Deaths}}</td><td class="num">{{.KD}}</td><td class="num">{{.HSRate}}</td><td class="num">{{.Points}}</td></tr>
           {{end}}
         </tbody>
       </table>

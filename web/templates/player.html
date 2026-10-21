@@ -1,0 +1,90 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <h1>{{.Name}}</h1>
+  <span class="spacer"></span>
+  <a class="btn sm" href="/stats">All statistics</a>
+</div>
+
+<div class="stack">
+  {{if .Aliases}}<p class="muted">Also played as: {{join .Aliases ", "}}</p>{{end}}
+  <p class="muted">
+    {{if .Filtered}}Totals for {{.Chosen}} of {{.Total}} maps.{{else}}Totals for all {{.Total}} maps.{{end}}
+  </p>
+
+  <div class="stat-grid">
+    <div class="stat"><div class="stat-value">{{.Totals.Kills}}</div><div class="stat-label">Kills</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.Assists}}</div><div class="stat-label">Assists</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.Deaths}}</div><div class="stat-label">Deaths</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.KD}}</div><div class="stat-label">K/D</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.Headshots}}</div><div class="stat-label">Headshots ({{.Totals.HSRate}})</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.Points}}</div><div class="stat-label">Points</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.FirstKills}}</div><div class="stat-label">First kills</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.MVP}}</div><div class="stat-label">Kills per map</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.Bombs}}</div><div class="stat-label">Bombs planted</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.Defuses}}</div><div class="stat-label">Defuses</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.TeamKills}}</div><div class="stat-label">Team kills</div></div>
+    <div class="stat"><div class="stat-value">{{.Totals.Maps}}</div><div class="stat-label">Maps played</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Clutches won</h2>
+      <table class="table compact">
+        <thead><tr><th>1v1</th><th>1v2</th><th>1v3</th><th>1v4</th><th>1v5</th></tr></thead>
+        <tbody><tr>{{range .Totals.Clutch}}<td>{{.}}</td>{{end}}</tr></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Kills per round</h2>
+      <table class="table compact">
+        <thead><tr><th>1 kill</th><th>2 kills</th><th>3 kills</th><th>4 kills</th><th>5 kills</th></tr></thead>
+        <tbody><tr>{{range .Totals.MultiKills}}<td>{{.}}</td>{{end}}</tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <form class="card" method="get" action="/stats/players/{{.SteamID}}">
+    <div class="page-head">
+      <h2>Matches</h2>
+      <span class="spacer"></span>
+      <button type="button" class="btn sm" data-check="all">Select all</button>
+      <button type="button" class="btn sm" data-check="none">Clear</button>
+      <button type="submit" class="btn sm primary">Show selected</button>
+      {{if .Filtered}}<a class="btn sm ghost" href="/stats/players/{{.SteamID}}">Show all</a>{{end}}
+    </div>
+    <p class="hint">Pick maps and press "Show selected" to see the totals for only those.</p>
+    <div class="table-wrap">
+      <table class="table compact">
+        <thead>
+          <tr>
+            <th></th><th>Match</th><th>Date</th><th>Team</th><th>Against</th><th>Map</th><th class="num">Result</th>
+            <th class="num">K</th><th class="num">A</th><th class="num">D</th><th class="num">K/D</th><th class="num">HS</th><th class="num">Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Rows}}
+          <tr>
+            <td><input type="checkbox" name="row" value="{{.ID}}"{{if .Checked}} checked{{end}} aria-label="Pick this map"></td>
+            <td class="id"><a href="/matches/{{.MatchID}}">#{{.MatchID}}</a></td>
+            <td>{{date .Date}}</td>
+            <td>{{.OwnTeam}}</td>
+            <td>{{.Opponent}}</td>
+            <td>{{mapLabel .MapName}}</td>
+            <td class="num">{{.Result}}</td>
+            <td class="num">{{.Kills}}</td>
+            <td class="num">{{.Assists}}</td>
+            <td class="num">{{.Deaths}}</td>
+            <td class="num">{{.KD}}</td>
+            <td class="num">{{.Headshots}}</td>
+            <td class="num">{{.Points}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </form>
+</div>
+{{end}}
+{{end}}
+{{define "scripts"}}<script src="/static/table.js" defer></script>{{end}}

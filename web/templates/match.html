@@ -40,7 +40,7 @@
   <tbody>
     {{range .}}
     <tr>
-      <td>{{.Nickname}}</td>
+      <td>{{if .SteamID}}<a href="/stats/players/{{.SteamID}}">{{.Nickname}}</a>{{else}}{{.Nickname}}{{end}}</td>
       <td class="num">{{.Kills}}</td><td class="num">{{.Assists}}</td><td class="num">{{.Deaths}}</td><td class="num">{{.KD}}</td>
       <td class="num">{{.Headshots}}</td><td class="num">{{.HSPct}}</td><td class="num">{{.Points}}</td>
       <td class="num">{{.FirstKills}}</td><td class="num">{{.Rounds2K}}</td><td class="num">{{.Rounds3K}}</td><td class="num">{{.Rounds4K}}</td><td class="num">{{.Rounds5K}}</td>
@@ -130,7 +130,7 @@
   <div class="card">
     <div class="page-head">
       <h2>{{mapLabel .Map.Name}}</h2>
-      {{if .Current}}<span class="badge accent">Current map</span>{{end}}
+      {{if and .Current (gt (len $.Data.Maps) 1) (lt $.Data.Match.Status 13)}}<span class="badge accent">Current map</span>{{end}}
       <span class="badge muted">{{statusLabel .Map.Status}}</span>
       <span class="spacer"></span>
       <b class="score">{{.Map.Score1}} - {{.Map.Score2}}</b>
