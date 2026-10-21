@@ -11,6 +11,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -233,29 +235,124 @@ func TestHintFor(t *testing.T) {
 
 func TestRateLimiter(t *testing.T) {
 	now := time.Unix(1000, 0)
-	l := newLoginLimiter(3, 5*time.Minute, func() time.Time { return now })
+	l := newLoginLimiter(3, 100, 5*time.Minute, func() time.Time { return now })
 	for i := 0; i < 3; i++ {
-		if l.blocked("k") {
+		if !l.allow("k", "1.1.1.1") {
 			t.Fatalf("blocked after %d", i)
 		}
-		l.recordFail("k")
 	}
-	if !l.blocked("k") {
+	if l.allow("k", "1.1.1.1") {
 		t.Error("not blocked at limit")
 	}
-	if l.blocked("other") {
-		t.Error("other key blocked")
+	if !l.allow("other", "1.1.1.1") {
+		t.Error("other user blocked")
+	}
+	if !l.allow("k", "2.2.2.2") {
+		t.Error("same user from another address blocked")
 	}
 	now = now.Add(5*time.Minute + time.Second)
-	if l.blocked("k") {
+	if !l.allow("k", "1.1.1.1") {
 		t.Error("still blocked after window")
 	}
+	l.allow("k", "1.1.1.1")
+	l.success("k", "1.1.1.1")
 	for i := 0; i < 3; i++ {
-		l.recordFail("k")
+		if !l.allow("k", "1.1.1.1") {
+			t.Fatalf("success did not clear, attempt %d", i)
+		}
 	}
-	l.success("k")
-	if l.blocked("k") {
-		t.Error("success did not clear")
+}
+
+func TestRateLimiterPerAddress(t *testing.T) {
+	l := newLoginLimiter(10, 5, time.Minute, nil)
+	for i := 0; i < 5; i++ {
+		if !l.allow("user"+strconv.Itoa(i), "1.1.1.1") {
+			t.Fatalf("blocked at %d", i)
+		}
+	}
+	if l.allow("fresh", "1.1.1.1") {
+		t.Error("address limit not applied across usernames")
+	}
+	if !l.allow("fresh", "2.2.2.2") {
+		t.Error("other address blocked")
+	}
+}
+
+func TestRateLimiterRefund(t *testing.T) {
+	l := newLoginLimiter(2, 2, time.Minute, nil)
+	for i := 0; i < 5; i++ {
+		if !l.allow("u", "1.1.1.1") {
+			t.Fatalf("refunded attempt %d counted", i)
+		}
+		l.refund("u", "1.1.1.1")
+	}
+}
+
+func TestRateLimiterConcurrent(t *testing.T) {
+	l := newLoginLimiter(10, 1000, time.Minute, nil)
+	var passed atomic.Int32
+	var wg sync.WaitGroup
+	for i := 0; i < 200; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if l.allow("same", "1.1.1.1") {
+				passed.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if passed.Load() != 10 {
+		t.Errorf("%d concurrent attempts passed, want 10", passed.Load())
+	}
+
+	l = newLoginLimiter(1000, 20, time.Minute, nil)
+	passed.Store(0)
+	for i := 0; i < 200; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if l.allow("u"+strconv.Itoa(i), "1.1.1.1") {
+				passed.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if passed.Load() != 20 {
+		t.Errorf("%d attempts passed the address limit, want 20", passed.Load())
+	}
+}
+
+func TestRateLimiterKeyCap(t *testing.T) {
+	now := time.Unix(1000, 0)
+	l := newLoginLimiter(10, 10, time.Minute, func() time.Time { return now })
+	attempt := func(i int) {
+		now = now.Add(time.Millisecond)
+		l.allow("u"+strconv.Itoa(i), "10.0."+strconv.Itoa(i/250)+"."+strconv.Itoa(i%250))
+		if len(l.attempts) > maxTrackedKeys {
+			t.Fatalf("%d keys tracked", len(l.attempts))
+		}
+	}
+	n := 0
+	for ; len(l.attempts) < maxTrackedKeys; n++ {
+		attempt(n)
+	}
+	attempt(n)
+	if _, ok := l.attempts[userKeyPrefix+"u0|10.0.0.0"]; ok {
+		t.Error("oldest key was not evicted")
+	}
+	if _, ok := l.attempts[userKeyPrefix+"u"+strconv.Itoa(n)+"|10.0."+strconv.Itoa(n/250)+"."+strconv.Itoa(n%250)]; !ok {
+		t.Error("newest key was evicted")
+	}
+
+	for len(l.attempts) < maxTrackedKeys {
+		n++
+		attempt(n)
+	}
+	now = now.Add(2 * time.Minute)
+	l.allow("late", "2.2.2.2")
+	if len(l.attempts) != 2 {
+		t.Errorf("expired keys kept: %d", len(l.attempts))
 	}
 }
 
@@ -287,12 +384,24 @@ func TestClientIP(t *testing.T) {
 	if got := clientIP(r, true); got != "2.2.2.2" {
 		t.Errorf("xff: %q", got)
 	}
+	r.Header.Add("X-Forwarded-For", "6.6.6.6, 3.3.3.3")
+	if got := clientIP(r, true); got != "3.3.3.3" {
+		t.Errorf("xff with two lines: %q", got)
+	}
+	if got := clientIP(r, false); got != "10.0.0.1" {
+		t.Errorf("untrusted: %q", got)
+	}
 }
 
-type fakeLocal struct{ calls int }
+type fakeLocal struct {
+	mu    sync.Mutex
+	calls int
+}
 
 func (f *fakeLocal) VerifyLocal(_ context.Context, u, p string) (Session, error) {
+	f.mu.Lock()
 	f.calls++
+	f.mu.Unlock()
 	if u == "admin" && p == "secret" {
 		return Session{Subject: "admin", Name: "admin", Role: RoleAdmin, Source: SourceLocal}, nil
 	}
@@ -408,13 +517,112 @@ func TestLoginPageAndLogout(t *testing.T) {
 		t.Errorf("logged in redirect: %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 
-	for _, method := range []string{"GET", "POST"} {
-		rec = httptest.NewRecorder()
-		mux.ServeHTTP(rec, httptest.NewRequest(method, "/logout", nil))
-		cs := rec.Result().Cookies()
-		if rec.Header().Get("Location") != "/" || len(cs) == 0 || cs[0].MaxAge != -1 {
-			t.Errorf("%s logout: %q %+v", method, rec.Header().Get("Location"), cs)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("POST", "/logout", nil))
+	cs := rec.Result().Cookies()
+	if rec.Header().Get("Location") != "/" || len(cs) == 0 || cs[0].MaxAge != -1 {
+		t.Errorf("logout: %q %+v", rec.Header().Get("Location"), cs)
+	}
+	paths := map[string]bool{}
+	for _, c := range cs {
+		if c.Name == idTokenCookie {
+			paths[c.Path] = c.MaxAge == -1
 		}
+	}
+	if !paths["/logout"] || !paths["/"] {
+		t.Errorf("id token cookie not cleared on both paths: %v", paths)
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/logout", nil))
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("GET /logout: %d", rec.Code)
+	}
+}
+
+func TestIDTokenCookiePath(t *testing.T) {
+	h, _, _, _ := newTestHandler(t, nil)
+	rec := httptest.NewRecorder()
+	h.writeIDToken(rec, "tok")
+	cs := rec.Result().Cookies()
+	if len(cs) != 1 || cs[0].Path != "/logout" || !cs[0].HttpOnly {
+		t.Errorf("cookie = %+v", cs)
+	}
+}
+
+func TestLoginHardening(t *testing.T) {
+	_, mux, fl, _ := newTestHandler(t, nil)
+
+	long := strings.Repeat("a", 129)
+	if rec := postLogin(mux, long, "x", "/"); rec.Code != http.StatusUnauthorized || fl.calls != 0 {
+		t.Errorf("long username: %d, verify calls %d", rec.Code, fl.calls)
+	}
+
+	form := url.Values{"username": {"admin"}, "password": {strings.Repeat("p", 9<<10)}}
+	r := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, r)
+	if rec.Code != http.StatusRequestEntityTooLarge || fl.calls != 0 {
+		t.Errorf("big body: %d, verify calls %d", rec.Code, fl.calls)
+	}
+}
+
+func TestLoginAddressLimitIsOffWithoutATrustedProxy(t *testing.T) {
+	_, mux, _, _ := newTestHandler(t, nil)
+	for i := 0; i < 60; i++ {
+		if rec := postLogin(mux, "user"+strconv.Itoa(i), "bad", "/"); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d from a shared address: %d", i, rec.Code)
+		}
+	}
+	if rec := postLogin(mux, "admin", "secret", "/"); rec.Code == http.StatusTooManyRequests {
+		t.Error("one visitor must not be able to lock everybody out")
+	}
+}
+
+func TestLoginAddressLimit(t *testing.T) {
+	_, mux, fl, _ := newTestHandler(t, &config.Config{Title: "eBot", TrustProxy: true})
+	for i := 0; i < 30; i++ {
+		if rec := postLogin(mux, "user"+strconv.Itoa(i), "bad", "/"); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: %d", i, rec.Code)
+		}
+	}
+	before := fl.calls
+	if rec := postLogin(mux, "admin", "secret", "/"); rec.Code != http.StatusTooManyRequests || fl.calls != before {
+		t.Errorf("address not limited: %d", rec.Code)
+	}
+}
+
+func TestLogName(t *testing.T) {
+	if got := logName(strings.Repeat("é", 100)); len([]rune(got)) != 64 {
+		t.Errorf("len = %d", len([]rune(got)))
+	}
+	if logName("admin") != "admin" {
+		t.Error("short name changed")
+	}
+}
+
+func TestLoginConcurrentWrongPasswords(t *testing.T) {
+	fl := &fakeLocal{}
+	h, err := NewHandler(context.Background(), &config.Config{Title: "eBot"}, NewManager(testKey, false), fl, func(w http.ResponseWriter, _ *http.Request, status int, _ string, _ any) {
+		w.WriteHeader(status)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	h.Register(mux)
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			postLogin(mux, "admin", "bad", "/")
+		}()
+	}
+	wg.Wait()
+	if fl.calls > 10 {
+		t.Errorf("%d passwords were checked, limit is 10", fl.calls)
 	}
 }
 
@@ -483,5 +691,50 @@ func TestClientIPIgnoresForwardedForUnlessTrusted(t *testing.T) {
 	r.Header.Set("X-Forwarded-For", "9.9.9.9")
 	if got := clientIP(r, false); got != "10.0.0.1" {
 		t.Errorf("untrusted proxy: %q", got)
+	}
+}
+
+func TestIPLimitOnlyWithATrustedProxy(t *testing.T) {
+	if ipLimit(false) != 0 || ipLimit(true) != 30 {
+		t.Fatalf("ipLimit: %d %d", ipLimit(false), ipLimit(true))
+	}
+	// Behind a proxy that is not trusted every visitor shares one address. One
+	// person failing many times under different names must not block the rest.
+	l := newLoginLimiter(10, 0, time.Minute, nil)
+	for i := 0; i < 200; i++ {
+		if !l.allow("user"+strconv.Itoa(i), "10.0.0.1") {
+			t.Fatalf("attempt %d blocked with the address limit off", i)
+		}
+	}
+	if len(l.attempts) != 200 {
+		t.Errorf("tracked %d keys, want 200 (no address keys)", len(l.attempts))
+	}
+	for i := 0; i < 10; i++ {
+		l.allow("victim", "10.0.0.1")
+	}
+	if l.allow("victim", "10.0.0.1") {
+		t.Error("the username limit must still hold")
+	}
+}
+
+func TestFloodingTheTableDoesNotFreeABlockedKey(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	l := newLoginLimiter(3, 0, 5*time.Minute, func() time.Time { return now })
+	for i := 0; i < 3; i++ {
+		l.allow("target", "1.2.3.4")
+	}
+	if l.allow("target", "1.2.3.4") {
+		t.Fatal("target should be blocked")
+	}
+	// Fill the table with other names, then keep adding so eviction runs.
+	for i := 0; i < maxTrackedKeys+2500; i++ {
+		now = now.Add(time.Millisecond)
+		l.allow("n"+strconv.Itoa(i), "9.9.9."+strconv.Itoa(i%250))
+	}
+	if l.allow("target", "1.2.3.4") {
+		t.Error("an attacker's flood reset the counter of a blocked key")
+	}
+	if len(l.attempts) > maxTrackedKeys {
+		t.Errorf("table grew to %d", len(l.attempts))
 	}
 }

@@ -279,6 +279,10 @@ func (s *Store) ListMatches(ctx context.Context, f MatchFilter) ([]Match, Page, 
 		return nil, Page{}, err
 	}
 	p := Page{Page: page, PerPage: perPage, Total: total}
+	if pages := p.Pages(); p.Page > pages {
+		p.Page = pages
+	}
+	page = p.Page
 
 	q := matchSelect + where + " ORDER BY m.id DESC LIMIT ? OFFSET ?"
 	rows, err := s.db.QueryContext(ctx, q, append(args, perPage, (page-1)*perPage)...)
@@ -474,6 +478,15 @@ func (s *Store) UpdateMatch(ctx context.Context, id int64, in MatchInput) error 
 		if _, err := tx.ExecContext(ctx, "UPDATE maps SET map_name = ?, updated_at = ? WHERE id = ?",
 			in.Maps[0].Name, t, next); err != nil {
 			return err
+		}
+		switch in.Side {
+		case "":
+		case "ct", "t":
+			if _, err := tx.ExecContext(ctx, "UPDATE maps SET current_side = ? WHERE id = ?", in.Side, next); err != nil {
+				return err
+			}
+		default:
+			return invalid("the first side must be ct or t")
 		}
 
 		sets := make([]string, 0, len(inputCols)+2)

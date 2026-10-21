@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net/http"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -26,14 +25,13 @@ var (
 	matchRoundChoices     = []int{15, 12, 9, 5, 3}
 	matchOTRoundChoices   = []int{5, 3}
 	matchAutoStartChoices = []int{5, 10, 15, 30}
-	matchFlagPattern      = regexp.MustCompile(`^[A-Za-z0-9_-]{1,8}$`)
 
 	matchPasswordWords = []string{
-		"frosch", "gehen", "rennen", "gucken", "fliegen", "rasen", "snobb", "peter", "wackel", "dackel", "gut",
-		"schlecht", "win", "loss", "tragen", "weg", "berlin", "aachen", "mensch", "tier", "turtle", "adler",
-		"raupe", "rauben", "bank", "schalter", "ticket", "bahn", "zug", "delay", "flugzeug", "ratte", "nager",
-		"hase", "feld", "gras", "kraut", "gurke", "apfel", "salat", "tomate", "dressing", "essig", "zwiebel",
-		"kuchen", "zucker", "salz", "kaffee", "tee", "monday", "tuesday", "wednesday", "friday", "weekend",
+		"frog", "walk", "run", "watch", "fly", "dash", "snob", "peter", "wobble", "badger", "good",
+		"bad", "win", "loss", "carry", "away", "london", "dublin", "human", "animal", "turtle", "eagle",
+		"larva", "steal", "bank", "counter", "ticket", "rail", "train", "delay", "plane", "rat", "rodent",
+		"rabbit", "field", "grass", "herb", "cucumber", "apple", "salad", "tomato", "dressing", "vinegar", "onion",
+		"cake", "sugar", "salt", "coffee", "tea", "monday", "tuesday", "wednesday", "friday", "weekend",
 		"holiday", "doctor", "game", "cup", "death", "player", "monitor", "hand", "food", "paper", "windows",
 		"together",
 	}
@@ -424,7 +422,7 @@ func (h *matchHandlers) parseMatchForm(r *http.Request, refs matchRefs, existing
 				errs[key+"_name"] = err.Error()
 			}
 		}
-		if flag != "" && !matchFlagPattern.MatchString(flag) {
+		if store.CheckFlag(flag) != nil {
 			errs[key+"_flag"] = "Use a country code such as DK."
 		}
 		return nil, name, strings.ToUpper(flag)
@@ -441,10 +439,12 @@ func (h *matchHandlers) parseMatchForm(r *http.Request, refs matchRefs, existing
 		errs["rules"] = "Required."
 	case existing != nil && f.Rules == existing.Rules:
 		in.Rules = f.Rules
-	case store.CheckRules(f.Rules) != nil:
-		errs["rules"] = store.CheckRules(f.Rules).Error()
 	default:
-		in.Rules = f.Rules
+		if err := store.CheckRules(f.Rules); err != nil {
+			errs["rules"] = err.Error()
+		} else {
+			in.Rules = f.Rules
+		}
 	}
 
 	if existing == nil || f.Password != existing.ConfigPassword {

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/NPetersenDK/eBot-CSGO-Web-Golang/internal/auth"
@@ -121,8 +122,10 @@ type entity struct {
 
 	Fields   func(ctx context.Context, edit bool) ([]field, error)
 	Defaults url.Values
-	Rows     func(ctx context.Context) ([]listRow, error)
-	Load     func(ctx context.Context, id int64) (url.Values, error)
+	// DefaultsFn, when set, is used instead of Defaults and runs for every new form.
+	DefaultsFn func() url.Values
+	Rows       func(ctx context.Context) ([]listRow, error)
+	Load       func(ctx context.Context, id int64) (url.Values, error)
 	// Create returns the flash message, or "" for the default one.
 	Create     func(ctx context.Context, v url.Values) (string, error)
 	Update     func(ctx context.Context, id int64, v url.Values) error
@@ -147,7 +150,7 @@ func pathID(r *http.Request) (int64, bool) {
 func (a *App) mountCrud(mux *http.ServeMux, st crudStore) {
 	mux.Handle("GET /admin", auth.RequireUser(http.HandlerFunc(a.dashboard(st))))
 
-	ents := []*entity{serverEntity(st), teamEntity(st), seasonEntity(st), adEntity(st), userEntity(st)}
+	ents := []*entity{serverEntity(st), teamEntity(st), seasonEntity(st, func() time.Time { return time.Now().In(a.Loc()) }), adEntity(st), userEntity(st)}
 	for _, e := range ents {
 		read := auth.RequireUser
 		if e.AdminOnly {
@@ -270,7 +273,11 @@ func (a *App) renderForm(w http.ResponseWriter, r *http.Request, status int, e *
 
 func (a *App) crudNew(e *entity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		a.renderForm(w, r, http.StatusOK, e, 0, e.Defaults, nil, "")
+		vals := e.Defaults
+		if e.DefaultsFn != nil {
+			vals = e.DefaultsFn()
+		}
+		a.renderForm(w, r, http.StatusOK, e, 0, vals, nil, "")
 	}
 }
 

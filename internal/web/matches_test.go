@@ -275,7 +275,7 @@ func TestMatchActions(t *testing.T) {
 		{"starting", 1, true, []string{"Stop", "Stop with restart", "RCON and backups"}},
 		{"warmup knife", 2, true, []string{"Stop", "Stop with restart", "RCON and backups", "Start knife", "Skip knife"}},
 		{"knife", 3, true, []string{"Stop", "Stop with restart", "RCON and backups", "End knife"}},
-		{"end knife", 4, true, []string{"Stop", "Stop with restart", "RCON and backups", "End knife"}},
+		{"end knife", 4, true, []string{"Stop", "Stop with restart", "RCON and backups"}},
 		{"warmup first side", 5, true, []string{"Stop", "Stop with restart", "RCON and backups", "End warmup or halftime"}},
 		{"first side", 6, true, []string{"Stop", "Stop with restart", "RCON and backups", "Stop to warmup", "Pause or unpause"}},
 		{"warmup second side", 7, true, []string{"Stop", "Stop with restart", "RCON and backups", "End warmup or halftime"}},
@@ -409,7 +409,7 @@ func TestParseMatchForm(t *testing.T) {
 		{"bad mode", func(v url.Values) { v.Set("map_selection_mode", "bo9") }, "map_selection_mode"},
 		{"unknown season", func(v url.Values) { v.Set("season_id", "42") }, "season_id"},
 		{"unknown server", func(v url.Values) { v.Set("server_id", "42") }, "server_id"},
-		{"bad date", func(v url.Values) { v.Set("startdate", "tomorrow") }, "startdate"},
+		{"bad date", func(v url.Values) { v.Set("auto_start", "1"); v.Set("startdate", "tomorrow") }, "startdate"},
 		{"bad flag", func(v url.Values) { v.Set("team_a", ""); v.Set("team_a_name", "X"); v.Set("team_a_flag", "<b>") }, "team_a_flag"},
 		{"bad ot money", func(v url.Values) { v.Set("config_ot", "1"); v.Set("overtime_startmoney", "-5") }, "overtime_startmoney"},
 		{"bad ot rounds", func(v url.Values) { v.Set("config_ot", "1"); v.Set("overtime_max_round", "4") }, "overtime_max_round"},
@@ -424,6 +424,16 @@ func TestParseMatchForm(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("a bad date is an error even without autostart", func(t *testing.T) {
+		// A silent drop would clear the stored start date on an edit.
+		v := validMatchForm()
+		v.Del("auto_start")
+		v.Set("startdate", "2026-10-21 20:00")
+		if _, errs := parseMatchWith(t, e, v, nil); errs["startdate"] == "" {
+			t.Fatal("a start date in the wrong format was accepted")
+		}
+	})
 
 	t.Run("custom team", func(t *testing.T) {
 		v := validMatchForm()
@@ -908,7 +918,7 @@ func TestGlobalStatsPages(t *testing.T) {
 		}
 	}
 
-	rec = e.do("GET", "/stats?season=3", "", nil)
+	rec = e.do("GET", "/stats?season=2", "", nil)
 	if rec.Code != 200 {
 		t.Fatalf("stats = %d", rec.Code)
 	}
@@ -918,7 +928,7 @@ func TestGlobalStatsPages(t *testing.T) {
 			t.Errorf("stats page missing %q", want)
 		}
 	}
-	if e.st.statsSeason != 3 {
+	if e.st.statsSeason != 2 {
 		t.Errorf("season filter = %d", e.st.statsSeason)
 	}
 }
@@ -1039,7 +1049,7 @@ func TestHomeLayout(t *testing.T) {
 
 	for _, want := range []string{
 		`class="stack" data-live="matches"`,
-		"<h2>Matches in progress and upcoming matches</h2>",
+		"<h2>Current matches</h2>",
 		"<h2>Top players</h2>",
 		"<th class=\"num\">Matches</th><th class=\"num\">Kills/match</th>",
 		"data-live-state",
@@ -1057,5 +1067,18 @@ func TestHomeLayout(t *testing.T) {
 	}
 	if open, closed := strings.Count(body, "<div"), strings.Count(body, "</div>"); open != closed {
 		t.Errorf("unbalanced divs: %d opened, %d closed", open, closed)
+	}
+}
+
+func TestStatsIgnoresUnknownSeasons(t *testing.T) {
+	e := newMatchTestEnv(t)
+	for _, q := range []string{"season=999999", "season=-3", "season=abc"} {
+		e.st.statsSeason = -1
+		if rec := e.do("GET", "/stats?"+q, "", nil); rec.Code != 200 {
+			t.Fatalf("%s: %d", q, rec.Code)
+		}
+		if e.st.statsSeason != 0 {
+			t.Errorf("%s reached the aggregate query as season %d", q, e.st.statsSeason)
+		}
 	}
 }

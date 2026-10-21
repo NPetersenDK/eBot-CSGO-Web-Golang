@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -287,6 +288,32 @@ func TestUpdateMatch(t *testing.T) {
 	if m.CurrentMapID == nil || *m.CurrentMapID != before[2].ID {
 		t.Errorf("current map changed: %v", m.CurrentMapID)
 	}
+	sideBefore := maps[2].CurrentSide
+	other := "ct"
+	if sideBefore == "ct" {
+		other = "t"
+	}
+	in.Side = other
+	if err := s.UpdateMatch(ctx, id, in); err != nil {
+		t.Fatal(err)
+	}
+	maps, _ = s.ListMaps(ctx, id)
+	if maps[2].CurrentSide != other || maps[0].CurrentSide != before[0].CurrentSide {
+		t.Errorf("side after update: %q (was %q), first map %q", maps[2].CurrentSide, sideBefore, maps[0].CurrentSide)
+	}
+	in.Side = ""
+	if err := s.UpdateMatch(ctx, id, in); err != nil {
+		t.Fatal(err)
+	}
+	maps, _ = s.ListMaps(ctx, id)
+	if maps[2].CurrentSide != other {
+		t.Errorf("empty side changed the side to %q", maps[2].CurrentSide)
+	}
+	in.Side = "x"
+	if err := s.UpdateMatch(ctx, id, in); !errors.Is(err, ErrInvalid) {
+		t.Errorf("bad side: %v", err)
+	}
+	in.Side = ""
 	if err := s.UpdateMatch(ctx, id, sampleInput("a", "b")); err == nil {
 		t.Error("two maps accepted")
 	}
@@ -496,6 +523,10 @@ func TestListMatchesFiltersAndPaging(t *testing.T) {
 	list, _, _ = s.ListMatches(ctx, MatchFilter{Page: 2})
 	if len(list) != 2 {
 		t.Errorf("page 2: %d", len(list))
+	}
+	list, p, err = s.ListMatches(ctx, MatchFilter{Page: math.MaxInt})
+	if err != nil || len(list) != 2 || p.Page != 2 {
+		t.Errorf("clamped page: %v len %d %+v", err, len(list), p)
 	}
 	list, p, _ = s.ListMatches(ctx, MatchFilter{Archived: true})
 	if len(list) != 1 || p.Total != 1 || list[0].ID != ids[14] {

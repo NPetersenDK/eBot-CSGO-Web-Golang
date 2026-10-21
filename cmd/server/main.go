@@ -96,12 +96,12 @@ func run() error {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
-	mux.HandleFunc("GET /readyz", readyz(st, rdb))
+	mux.HandleFunc("GET /readyz", readyz(st.Ping, func(ctx context.Context) error { return rdb.Ping(ctx).Err() }))
 	authHandler.Register(mux)
 	app.Register(mux)
 	api.Register(mux, cfg, st, cmd)
 
-	handler := securityHeaders(sameOriginGuard(sessions.Middleware(st)(mux)))
+	handler := securityHeaders(!cfg.InsecureCookies, originOf(cfg.OIDC.Issuer), sameOriginGuard(sessions.Middleware(st)(mux)))
 
 	// Streaming handlers use the request context. Cancelling the base context
 	// on shutdown ends them, so Shutdown does not wait for open event streams.
@@ -111,6 +111,8 @@ func run() error {
 		Addr:              cfg.Addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		BaseContext:       func(net.Listener) context.Context { return baseCtx },
 	}
@@ -192,29 +194,56 @@ func bootstrapAdmin(ctx context.Context, cfg *config.Config, st *store.Store) er
 	return err
 }
 
-func readyz(st *store.Store, rdb *redis.Client) http.HandlerFunc {
+// readyz answers 503 without detail when a dependency fails. The error goes to the log.
+func readyz(db, redis func(context.Context) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		defer cancel()
-		if err := st.Ping(ctx); err != nil {
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
-			return
-		}
-		if err := rdb.Ping(ctx).Err(); err != nil {
-			http.Error(w, "redis: "+err.Error(), http.StatusServiceUnavailable)
-			return
+		for name, ping := range map[string]func(context.Context) error{"database": db, "redis": redis} {
+			if err := ping(ctx); err != nil {
+				slog.Error("readiness check failed", "dependency", name, "err", err)
+				http.Error(w, "unavailable", http.StatusServiceUnavailable)
+				return
+			}
 		}
 		_, _ = w.Write([]byte("ok"))
 	}
 }
 
-func securityHeaders(next http.Handler) http.Handler {
+// contentSecurityPolicy builds the CSP. Chrome applies form-action to the
+// redirect that answers a form post, so the single sign-on logout (a POST that
+// is answered with a redirect to the identity provider) needs the provider's
+// origin in the list.
+func contentSecurityPolicy(formActionExtra string) string {
+	formAction := "'self'"
+	if formActionExtra != "" {
+		formAction += " " + formActionExtra
+	}
+	return "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'self'; base-uri 'none'; form-action " + formAction + "; object-src 'none'"
+}
+
+// originOf returns scheme://host of a URL, or "" when it has none.
+func originOf(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
+}
+
+// securityHeaders sets the response headers. HSTS is only sent when cookies are
+// secure, which means the panel is served over HTTPS.
+func securityHeaders(hsts bool, formActionExtra string, next http.Handler) http.Handler {
+	policy := contentSecurityPolicy(formActionExtra)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "same-origin")
 		h.Set("X-Frame-Options", "SAMEORIGIN")
-		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'self'")
+		h.Set("Content-Security-Policy", policy)
+		if hsts {
+			h.Set("Strict-Transport-Security", "max-age=31536000")
+		}
 		next.ServeHTTP(w, r)
 	})
 }

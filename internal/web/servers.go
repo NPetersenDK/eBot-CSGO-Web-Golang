@@ -29,6 +29,15 @@ func validPort(s string) bool {
 	return err == nil && n >= 1 && n <= 65535
 }
 
+func serverText(label string) func(string, url.Values) string {
+	return func(v string, _ url.Values) string {
+		if err := store.CheckServerText(label, v); err != nil {
+			return err.Error()
+		}
+		return ""
+	}
+}
+
 func serverEntity(st serverStore) *entity {
 	create := []field{
 		{Name: "mode", Label: "Address type", Type: "select", Required: true, Options: []option{
@@ -75,9 +84,9 @@ func serverEntity(st serverStore) *entity {
 				return ""
 			}},
 		{Name: "hostname", Label: "Internal server name", Type: "text", Required: true, Max: 90,
-			Help: "A number is appended in range mode."},
+			Help: "A number is appended in range mode.", Validate: serverText("Name")},
 		{Name: "rcon", Label: "RCON password", Type: "text", Required: true, Max: 50},
-		{Name: "tv_ip", Label: "GOTV IP", Type: "text", Max: 100},
+		{Name: "tv_ip", Label: "GOTV IP", Type: "text", Max: 100, Validate: serverText("GOTV IP")},
 	}
 	edit := []field{
 		{Name: "ip", Label: "Server IP", Type: "text", Required: true, Max: 50, Help: "Host and port, for example 10.0.0.5:27015.",

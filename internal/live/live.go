@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -26,18 +27,47 @@ const (
 	scopeAlive  = "alive"
 
 	clientBuffer = 64
+
+	// The public match stream and the admin streams have separate budgets, so
+	// spectators can never take the admin console away.
+	maxPublicClients = 300
+	maxAdminClients  = 100
+	maxClientsPerIP  = 20
 )
 
+type event struct {
+	name string
+	data string
+}
+
+// subs maps a scope to the id it is filtered on. An empty id matches all.
 type client struct {
-	scope string
-	id    string
-	ch    chan string
+	subs map[string]string
+	ip   string
+	ch   chan event
+}
+
+// admin is true for the streams that need a login: everything but the public
+// match scope alone.
+func (c *client) admin() bool {
+	for scope := range c.subs {
+		if scope != scopeMatch {
+			return true
+		}
+	}
+	return false
+}
+
+func newClient(scope, id string) *client {
+	return &client{subs: map[string]string{scope: id}, ch: make(chan event, clientBuffer)}
 }
 
 type Hub struct {
-	channel string
-	rdb     *redis.Client
-	cmd     *ebotcmd.Publisher
+	// trustProxy takes the viewer address from X-Forwarded-For (EBOT_TRUST_PROXY).
+	trustProxy bool
+	channel    string
+	rdb        *redis.Client
+	cmd        *ebotcmd.Publisher
 
 	heartbeat time.Duration
 	keepalive time.Duration
@@ -54,21 +84,26 @@ type Hub struct {
 
 	mu      sync.Mutex
 	clients map[*client]struct{}
+	perIP   map[string]int
+	public  int
+	admins  int
 	loggers int
 	alive   int
 }
 
 func New(cfg *config.Config, rdb *redis.Client, cmd *ebotcmd.Publisher) *Hub {
 	return &Hub{
-		channel:   cfg.RedisToWS,
-		rdb:       rdb,
-		cmd:       cmd,
-		heartbeat: 15 * time.Second,
-		keepalive: 30 * time.Second,
-		backoff:   time.Second,
-		botTTL:    20 * time.Second,
-		probeGap:  10 * time.Second,
-		clients:   map[*client]struct{}{},
+		channel:    cfg.RedisToWS,
+		rdb:        rdb,
+		cmd:        cmd,
+		heartbeat:  15 * time.Second,
+		keepalive:  30 * time.Second,
+		backoff:    time.Second,
+		botTTL:     20 * time.Second,
+		probeGap:   10 * time.Second,
+		clients:    map[*client]struct{}{},
+		perIP:      map[string]int{},
+		trustProxy: cfg.TrustProxy,
 	}
 }
 
@@ -140,7 +175,13 @@ func (h *Hub) handle(payload string) {
 		return
 	}
 	switch env.Scope {
-	case scopeMatch, scopeAlive:
+	case scopeMatch:
+		id := ""
+		if parsed {
+			id = in.id()
+		}
+		h.dispatch(env.Scope, id, env.Data)
+	case scopeAlive:
 		h.dispatch(env.Scope, "", env.Data)
 	case scopeRcon, scopeLogger:
 		if parsed && in.id() != "" {
@@ -153,11 +194,12 @@ func (h *Hub) dispatch(scope, id, data string) {
 	var slow []*client
 	h.mu.Lock()
 	for c := range h.clients {
-		if c.scope != scope || c.id != id {
+		filter, ok := c.subs[scope]
+		if !ok || (filter != "" && filter != id) {
 			continue
 		}
 		select {
-		case c.ch <- data:
+		case c.ch <- event{scope, data}:
 		default:
 			slow = append(slow, c)
 		}
@@ -168,27 +210,44 @@ func (h *Hub) dispatch(scope, id, data string) {
 	}
 }
 
-func (h *Hub) add(ctx context.Context, c *client) {
+// add registers c. It returns false when a client cap is reached.
+func (h *Hub) add(ctx context.Context, c *client) bool {
 	h.mu.Lock()
+	if c.admin() {
+		if h.admins >= maxAdminClients {
+			h.mu.Unlock()
+			return false
+		}
+		h.admins++
+	} else {
+		if h.public >= maxPublicClients || (c.ip != "" && h.perIP[c.ip] >= maxClientsPerIP) {
+			h.mu.Unlock()
+			return false
+		}
+		h.public++
+		if c.ip != "" {
+			h.perIP[c.ip]++
+		}
+	}
 	h.clients[c] = struct{}{}
-	first := false
-	switch c.scope {
-	case scopeLogger:
+	_, logger := c.subs[scopeLogger]
+	_, alive := c.subs[scopeAlive]
+	firstLogger := false
+	if logger {
 		h.loggers++
-		first = h.loggers == 1
-	case scopeAlive:
+		firstLogger = h.loggers == 1
+	}
+	if alive {
 		h.alive++
-		first = true
 	}
 	h.mu.Unlock()
-	if !first {
-		return
-	}
-	if c.scope == scopeLogger {
+	if firstLogger {
 		h.push(ctx, "__true__")
-	} else {
+	}
+	if alive {
 		h.push(ctx, "__aliveCheck__")
 	}
+	return true
 }
 
 // remove is idempotent. It closes the client's channel, which ends its handler.
@@ -200,12 +259,22 @@ func (h *Hub) remove(c *client) {
 	}
 	delete(h.clients, c)
 	close(c.ch)
+	if c.admin() {
+		h.admins--
+	} else {
+		h.public--
+		if c.ip != "" {
+			if h.perIP[c.ip]--; h.perIP[c.ip] <= 0 {
+				delete(h.perIP, c.ip)
+			}
+		}
+	}
 	last := false
-	switch c.scope {
-	case scopeLogger:
+	if _, ok := c.subs[scopeLogger]; ok {
 		h.loggers--
 		last = h.loggers == 0
-	case scopeAlive:
+	}
+	if _, ok := c.subs[scopeAlive]; ok {
 		h.alive--
 	}
 	h.mu.Unlock()
@@ -246,21 +315,25 @@ func (h *Hub) keepaliveLoop(ctx context.Context) {
 	}
 }
 
-func (h *Hub) serve(w http.ResponseWriter, r *http.Request, scope, id string) {
+func (h *Hub) serve(w http.ResponseWriter, r *http.Request, subs map[string]string) {
 	fl, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 		return
 	}
+	c := &client{subs: subs, ip: viewerHost(r, h.trustProxy), ch: make(chan event, clientBuffer)}
+	if !h.add(r.Context(), c) {
+		http.Error(w, "too many live connections", http.StatusServiceUnavailable)
+		return
+	}
+	defer h.remove(c)
+
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 	hd := w.Header()
 	hd.Set("Content-Type", "text/event-stream")
 	hd.Set("Cache-Control", "no-cache")
 	hd.Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
-
-	c := &client{scope: scope, id: id, ch: make(chan string, clientBuffer)}
-	h.add(r.Context(), c)
-	defer h.remove(c)
 
 	_, _ = w.Write([]byte(": connected\n\n"))
 	fl.Flush()
@@ -275,11 +348,11 @@ func (h *Hub) serve(w http.ResponseWriter, r *http.Request, scope, id string) {
 			if _, err := w.Write([]byte(": ping\n\n")); err != nil {
 				return
 			}
-		case data, ok := <-c.ch:
+		case ev, ok := <-c.ch:
 			if !ok {
 				return
 			}
-			if _, err := w.Write([]byte(frame(scope, data))); err != nil {
+			if _, err := w.Write([]byte(frame(ev.name, ev.data))); err != nil {
 				return
 			}
 		}
@@ -307,21 +380,52 @@ func matchID(w http.ResponseWriter, r *http.Request) (string, bool) {
 }
 
 // Matches streams scope "match" messages. Public.
-func (h *Hub) Matches(w http.ResponseWriter, r *http.Request) { h.serve(w, r, scopeMatch, "") }
+func (h *Hub) Matches(w http.ResponseWriter, r *http.Request) {
+	h.serve(w, r, map[string]string{scopeMatch: ""})
+}
 
 // Rcon streams scope "rcon" messages for the match in r.PathValue("id"). Admin.
 func (h *Hub) Rcon(w http.ResponseWriter, r *http.Request) {
 	if id, ok := matchID(w, r); ok {
-		h.serve(w, r, scopeRcon, id)
+		h.serve(w, r, map[string]string{scopeRcon: id})
 	}
 }
 
 // Logger streams scope "logger" messages for r.PathValue("id"). Admin.
 func (h *Hub) Logger(w http.ResponseWriter, r *http.Request) {
 	if id, ok := matchID(w, r); ok {
-		h.serve(w, r, scopeLogger, id)
+		h.serve(w, r, map[string]string{scopeLogger: id})
 	}
 }
 
 // Alive streams scope "alive" messages. Admin.
-func (h *Hub) Alive(w http.ResponseWriter, r *http.Request) { h.serve(w, r, scopeAlive, "") }
+func (h *Hub) Alive(w http.ResponseWriter, r *http.Request) {
+	h.serve(w, r, map[string]string{scopeAlive: ""})
+}
+
+// Console streams scopes match (filtered to the match), rcon and logger for
+// r.PathValue("id") as named events in one response. Admin.
+func (h *Hub) Console(w http.ResponseWriter, r *http.Request) {
+	if id, ok := matchID(w, r); ok {
+		h.serve(w, r, map[string]string{scopeMatch: id, scopeRcon: id, scopeLogger: id})
+	}
+}
+
+// viewerHost is the address the per-address cap counts. Behind a trusted proxy
+// it is the last X-Forwarded-For value, otherwise the peer address, so a proxy
+// in front does not make all viewers share one budget.
+func viewerHost(r *http.Request, trustProxy bool) string {
+	if trustProxy {
+		if values := r.Header.Values("X-Forwarded-For"); len(values) > 0 {
+			parts := strings.Split(values[len(values)-1], ",")
+			if ip := strings.TrimSpace(parts[len(parts)-1]); ip != "" {
+				return ip
+			}
+		}
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}

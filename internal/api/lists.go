@@ -64,6 +64,12 @@ func (s *server) createServer(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	for _, err := range []error{store.CheckServerAddress(req.IP), store.CheckServerText("hostname", req.Hostname), store.CheckServerText("tv_ip", req.TvIP)} {
+		if err != nil {
+			storeError(w, err, "")
+			return
+		}
+	}
 	host, portStr, err := net.SplitHostPort(req.IP)
 	port, perr := strconv.Atoi(portStr)
 	if err != nil || perr != nil || port < 1 || port > 65535 {

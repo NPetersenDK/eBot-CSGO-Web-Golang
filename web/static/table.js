@@ -18,8 +18,9 @@
   }
 
   const number = (text) => {
-    const n = parseFloat(text.replace("%", "").replace(",", "."));
-    return Number.isNaN(n) ? null : n;
+    const t = text.trim();
+    if (!/^-?\d+([.,]\d+)?%?$/.test(t)) return null;
+    return parseFloat(t.replace("%", "").replace(",", "."));
   };
 
   for (const root of document.querySelectorAll("[data-table]")) {

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strconv"
 
@@ -91,6 +92,27 @@ var teamFlags = []option{
 	{"VN", "Vietnam"},
 }
 
+// withStoredFlags adds flags that teams already use but the list lacks, so
+// editing a team made by the PHP panel does not change its flag.
+func withStoredFlags(ctx context.Context, st teamStore) ([]option, error) {
+	teams, err := st.ListTeams(ctx)
+	if err != nil {
+		return nil, err
+	}
+	known := map[string]bool{}
+	for _, o := range teamFlags {
+		known[o.Value] = true
+	}
+	out := append([]option(nil), teamFlags...)
+	for _, t := range teams {
+		if t.Flag != "" && !known[t.Flag] {
+			known[t.Flag] = true
+			out = append(out, option{t.Flag, t.Flag})
+		}
+	}
+	return out, nil
+}
+
 func teamEntity(st interface {
 	teamStore
 	ListSeasons(ctx context.Context) ([]store.Season, error)
@@ -111,15 +133,30 @@ func teamEntity(st interface {
 		NewLabel: "Create new team",
 		Columns:  []string{"#ID", "Flag", "Name", "Short name", "Team link"},
 		Empty:    "No teams yet.",
-		Fields: func(ctx context.Context, _ bool) ([]field, error) {
+		Fields: func(ctx context.Context, isEdit bool) ([]field, error) {
 			seasons, err := seasonOptions(ctx, st)
 			if err != nil {
 				return nil, err
 			}
+			name := field{Name: "name", Label: "Name", Type: "text", Required: true, Max: 25,
+				Validate: func(v string, _ url.Values) string {
+					if err := store.CheckTeamName(v); err != nil {
+						return err.Error()
+					}
+					return ""
+				}}
+			flags := teamFlags
+			if isEdit {
+				// A stored name is only checked by the store when it changed.
+				name.Max, name.Validate = 0, nil
+				if flags, err = withStoredFlags(ctx, st); err != nil {
+					return nil, err
+				}
+			}
 			return []field{
-				{Name: "name", Label: "Name", Type: "text", Required: true, Max: 50},
+				name,
 				{Name: "short_name", Label: "Short name", Type: "text", Required: true, Max: 50},
-				{Name: "flag", Label: "Flag", Type: "select", Required: true, Options: teamFlags},
+				{Name: "flag", Label: "Flag", Type: "select", Required: true, Options: flags},
 				{Name: "link", Label: "Team link", Type: "text", Max: 100, Validate: validURL},
 				{Name: "seasons", Label: "Seasons", Type: "multiselect", Options: seasons, Help: "Hold Ctrl or Cmd to select several."},
 			}, nil
@@ -158,7 +195,16 @@ func teamEntity(st interface {
 			_, err := st.CreateTeam(ctx, input(v))
 			return "", err
 		},
-		Update: func(ctx context.Context, id int64, v url.Values) error { return st.UpdateTeam(ctx, id, input(v)) },
+		Update: func(ctx context.Context, id int64, v url.Values) error {
+			in := input(v)
+			err := st.UpdateTeam(ctx, id, in)
+			if errors.Is(err, store.ErrInvalid) {
+				if nameErr := store.CheckTeamName(in.Name); nameErr != nil {
+					return fieldErrors{"name": nameErr.Error()}
+				}
+			}
+			return err
+		},
 		Delete: st.DeleteTeam,
 	}
 }

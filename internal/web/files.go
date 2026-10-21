@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/NPetersenDK/eBot-CSGO-Web-Golang/internal/auth"
 	"github.com/NPetersenDK/eBot-CSGO-Web-Golang/internal/config"
@@ -28,8 +29,8 @@ func (a *App) registerFileRoutes(mux *http.ServeMux) { a.mountFiles(mux, a.Store
 
 func (a *App) mountFiles(mux *http.ServeMux, maps mapStore) {
 	mux.HandleFunc("GET /matches/{id}/demo/{mapId}", a.demoHandler(maps))
-	mux.Handle("GET /admin/matches/{id}/log", auth.RequireUser(http.HandlerFunc(a.logPageHandler)))
-	mux.Handle("GET /admin/matches/{id}/log/raw", auth.RequireUser(http.HandlerFunc(a.logRawHandler)))
+	mux.Handle("GET /admin/matches/{id}/log", auth.RequireAdmin(http.HandlerFunc(a.logPageHandler)))
+	mux.Handle("GET /admin/matches/{id}/log/raw", auth.RequireAdmin(http.HandlerFunc(a.logRawHandler)))
 }
 
 func positiveID(s string) (int64, bool) {
@@ -68,6 +69,7 @@ func openInside(dir, name string) (*os.File, os.FileInfo, error) {
 
 func (a *App) demoHandler(maps mapStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		noWriteDeadline(w)
 		if !a.Cfg.DemoDownload {
 			a.NotFound(w, r)
 			return
@@ -125,7 +127,14 @@ func logExists(cfg *config.Config, id int64) bool {
 	return true
 }
 
+// noWriteDeadline lifts the server write timeout for a handler that streams a
+// large file, so a slow download is not cut after a minute.
+func noWriteDeadline(w http.ResponseWriter) {
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
+}
+
 func (a *App) logRawHandler(w http.ResponseWriter, r *http.Request) {
+	noWriteDeadline(w)
 	id, ok := positiveID(r.PathValue("id"))
 	if !ok {
 		a.NotFound(w, r)

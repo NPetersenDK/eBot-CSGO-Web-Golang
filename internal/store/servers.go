@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -113,11 +114,41 @@ var (
 	dnsHostRe   = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$`)
 )
 
+const maxServerText = 100
+
+// CheckServerAddress validates "host:port" the way server creation does: an
+// IPv4 address or a DNS name, and a port from 1 to 65535.
+func CheckServerAddress(addr string) error {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return invalid("Use the form host:port.")
+	}
+	if p, err := strconv.Atoi(port); err != nil || p < 1 || p > 65535 {
+		return invalid("Port must be 1 to 65535.")
+	}
+	if !ipv4Re.MatchString(host) && !dnsHostRe.MatchString(host) {
+		return invalid("Enter an IPv4 address or a DNS name.")
+	}
+	if ip := net.ParseIP(host); ipv4Re.MatchString(host) && (ip == nil || ip.To4() == nil) {
+		return invalid("Enter a valid IPv4 address.")
+	}
+	return nil
+}
+
+// CheckServerText validates the server name and the GOTV address.
+func CheckServerText(label, s string) error { return CheckSafeText(label, s, maxServerText) }
+
 // expandServers turns a ServerCreate into the servers to insert. Range mode
 // walks the ports Port..PortEnd and, like the PHP action, also accepts a last
 // octet range in Host ("10.0.0.1-5"). Numbered hostnames get " #n" appended.
 func expandServers(in ServerCreate) ([]newServer, error) {
 	host := strings.TrimSpace(in.Host)
+	if err := CheckServerText("Name", in.Hostname); err != nil {
+		return nil, err
+	}
+	if err := CheckServerText("GOTV IP", in.TVIP); err != nil {
+		return nil, err
+	}
 	validPort := func(p int) bool { return p >= 1 && p <= 65535 }
 	switch in.Mode {
 	case "single":
@@ -186,7 +217,28 @@ func (s *Store) CreateServers(ctx context.Context, in ServerCreate) (int, error)
 
 func nullStr(v string) sql.NullString { return sql.NullString{String: v, Valid: v != ""} }
 
+// UpdateServer validates the values that changed, so a server stored by the
+// PHP panel with an odd value can still be edited.
 func (s *Store) UpdateServer(ctx context.Context, id int64, in ServerInput) error {
+	old, err := s.GetServer(ctx, id)
+	if err != nil {
+		return err
+	}
+	if in.IP != old.IP {
+		if err := CheckServerAddress(in.IP); err != nil {
+			return err
+		}
+	}
+	if in.Hostname != old.Hostname {
+		if err := CheckServerText("Name", in.Hostname); err != nil {
+			return err
+		}
+	}
+	if in.TVIP != old.TVIP {
+		if err := CheckServerText("GOTV IP", in.TVIP); err != nil {
+			return err
+		}
+	}
 	res, err := s.db.ExecContext(ctx, `UPDATE servers SET ip = ?, rcon = ?, hostname = ?, tv_ip = ?, updated_at = ? WHERE id = ?`,
 		in.IP, in.RCON, in.Hostname, nullStr(in.TVIP), nowUTC(), id)
 	if err != nil {

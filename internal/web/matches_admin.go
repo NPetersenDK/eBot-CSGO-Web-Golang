@@ -203,7 +203,7 @@ func (h *matchHandlers) duplicate(w http.ResponseWriter, r *http.Request) {
 	}
 	newID, err := h.st.DuplicateMatch(r.Context(), id)
 	if err != nil {
-		h.finish(w, r, err, "", "")
+		h.finish(w, r, err, "", matchURL(id))
 		return
 	}
 	h.finish(w, r, nil, fmt.Sprintf("Match cloned with ID %d.", newID), matchURL(newID))

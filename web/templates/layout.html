@@ -57,13 +57,17 @@
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.5"/><path d="M8 17c.8-2 2.2-3 4-3s3.2 1 4 3"/></svg>
           {{.User.Role}}
         </div>
+        <a class="dropdown-item" href="/admin">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+          Dashboard
+        </a>
         {{if .IsAdmin}}
         <a class="dropdown-item" href="/admin/users">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Users
         </a>
-        <hr class="dropdown-divider">
         {{end}}
+        <hr class="dropdown-divider">
         <form method="post" action="/logout">
           <button class="dropdown-item" type="submit">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
@@ -77,6 +81,7 @@
     {{end}}
   </header>
   <main class="content">
+    <span class="muted" data-command-result role="status"></span>
     {{if .Flash}}<div class="flash {{.Flash.Kind}}" role="status">{{.Flash.Message}}</div>{{end}}
     {{template "content" .}}
   </main>

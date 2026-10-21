@@ -34,6 +34,10 @@
   const poll = async () => {
     try {
       const res = await fetch("/admin/status", { credentials: "same-origin", cache: "no-store" });
+      if (res.redirected || !(res.headers.get("Content-Type") || "").includes("application/json")) {
+        location.href = "/login?next=" + encodeURIComponent(location.pathname + location.search);
+        return;
+      }
       render(res.ok ? await res.json() : null);
     } catch {
       render(null);

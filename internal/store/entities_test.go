@@ -108,6 +108,12 @@ func TestEntityServers(t *testing.T) {
 	if got.IP != "1.1.1.1:1" || got.TVIP != "" {
 		t.Fatalf("update: %+v", got)
 	}
+	if err := s.UpdateServer(ctx, free[0].ID, ServerInput{IP: "1.1.1.1:1", RCON: "x", Hostname: `N"ew`}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("bad server name: %v", err)
+	}
+	if err := s.UpdateServer(ctx, free[0].ID, ServerInput{IP: `1.1.1.1";x:1`, RCON: "x", Hostname: "New"}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("bad server ip: %v", err)
+	}
 	if err := s.DeleteServer(ctx, free[0].ID); err != nil {
 		t.Fatal(err)
 	}
@@ -152,6 +158,18 @@ func TestEntityTeamsSeasonsAds(t *testing.T) {
 	}
 	if err := s.UpdateTeam(ctx, 9999, TeamInput{}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("update missing: %v", err)
+	}
+	if _, err := s.CreateTeam(ctx, TeamInput{Name: `Bad"; quit`, ShortName: "X", Flag: "DK"}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("create bad team name: %v", err)
+	}
+	if err := s.UpdateTeam(ctx, tid, TeamInput{Name: "A;B", ShortName: "A", Flag: "DK"}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("update bad team name: %v", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE teams SET name = ? WHERE id = ?`, `Legacy"name`, tid); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdateTeam(ctx, tid, TeamInput{Name: `Legacy"name`, ShortName: "A2", Flag: "DK"}); err != nil {
+		t.Fatalf("unchanged legacy name: %v", err)
 	}
 
 	aid, err := s.CreateAd(ctx, AdInput{SeasonID: s1, Message: "hello", Active: true})

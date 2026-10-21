@@ -65,7 +65,7 @@ Public:
 | `GET /matches/{id}` | Match view |
 | `GET /matches/{id}/demo/{mapId}` | Demo download |
 | `GET /live/matches` | SSE, scope `match` |
-| `GET /login`, `POST /login`, `GET /logout`, `POST /logout` | |
+| `GET /login`, `POST /login`, `POST /logout` | Logout is POST only |
 | `GET /auth/oidc/login`, `GET /auth/oidc/callback` | |
 | `GET /healthz`, `GET /readyz` | |
 
@@ -81,7 +81,7 @@ Logged-in users (`RequireUser` for GET, `RequireAdmin` for every POST):
 | `POST /admin/matches/{id}/{retry,reset,archive,duplicate,delete}` | |
 | `GET /admin/matches/{id}/scores`, `POST /admin/matches/{id}/scores/{scoreId}` | Edit the per-side scores |
 | `POST /admin/matches/{id}/command` | form `action`, `arg`. Whitelisted by `ebotcmd.ValidAction` |
-| `GET /admin/matches/{id}/log` | Match log file in a sandboxed iframe |
+| `GET /admin/matches/{id}/log` | Match log file in a sandboxed iframe. Admin only, the log holds private team chat |
 | `GET /admin/live/{id}/rcon`, `GET /admin/live/{id}/logger`, `GET /admin/live/alive` | SSE, admin only |
 | `GET /admin/{servers,teams,seasons,ads,users}` | List |
 | `GET /admin/{entity}/new`, `POST /admin/{entity}` | Create |

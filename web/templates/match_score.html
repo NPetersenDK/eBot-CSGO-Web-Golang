@@ -7,12 +7,11 @@
 </div>
 
 <div class="flash warn" role="note"><b>Attention!</b> Changing the match scores will recalculate the match.</div>
-{{if .Match.Enable}}<div class="flash err" role="alert">Match is currently in progress. Scores cannot be changed.</div>{{end}}
 
 <div class="stack">
   {{range .Maps}}
   <div class="card">
-    <h2>{{.Map.Name}}</h2>
+    <h2>{{mapLabel .Map.Name}}</h2>
     {{range .Scores}}
     <form method="post" action="/admin/matches/{{$.Data.Match.ID}}/scores/{{.ID}}" class="stack">
       <div class="kv"><span>Score type</span><b>{{.Type}}</b></div>
@@ -30,7 +29,7 @@
           <input name="score2_side2" type="number" min="0" max="99" value="{{.Score2Side2}}" required>
         </label>
       </div>
-      <div class="actions"><button class="btn primary" type="submit"{{if $.Data.Match.Enable}} disabled{{end}}>Save scores</button></div>
+      <div class="actions"><button class="btn primary" type="submit">Save scores</button></div>
     </form>
     {{else}}
     <p class="muted">No scores recorded for this map.</p>

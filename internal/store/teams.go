@@ -85,6 +85,12 @@ func setTeamSeasons(ctx context.Context, tx *sql.Tx, teamID int64, seasonIDs []i
 }
 
 func (s *Store) CreateTeam(ctx context.Context, in TeamInput) (int64, error) {
+	if err := CheckTeamName(in.Name); err != nil {
+		return 0, err
+	}
+	if err := CheckFlag(in.Flag); err != nil {
+		return 0, err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -107,8 +113,19 @@ func (s *Store) CreateTeam(ctx context.Context, in TeamInput) (int64, error) {
 }
 
 func (s *Store) UpdateTeam(ctx context.Context, id int64, in TeamInput) error {
-	if err := s.existsID(ctx, "teams", id); err != nil {
+	old, err := s.GetTeam(ctx, id)
+	if err != nil {
 		return err
+	}
+	if in.Name != old.Name {
+		if err := CheckTeamName(in.Name); err != nil {
+			return err
+		}
+	}
+	if in.Flag != old.Flag {
+		if err := CheckFlag(in.Flag); err != nil {
+			return err
+		}
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

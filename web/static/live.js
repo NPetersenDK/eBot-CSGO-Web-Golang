@@ -22,7 +22,14 @@
  *                             Optional data-arg is sent as "arg". data-confirm="text"
  *                             asks confirm() first.
  *   [data-command-result]     Receives the result text of the last command.
- *   [data-live-state]         Shows "reconnecting" while an EventSource is in error.
+ *   [data-live-state]         Shows "reconnecting" while an EventSource is in error and
+ *                             "Session expired, reload" once it has been closed.
+ *   [data-page="<n>"]         On a list page root: the page number. Lists refresh on an
+ *                             event only on page 1 or when the match is in the list.
+ *   details[data-keep="<key>"]  Stays open across a region refresh.
+ *
+ * On a match page with the admin console, one stream (/admin/live/<id>) carries
+ * the named events match, rcon and logger.
  */
 (() => {
   "use strict";
@@ -40,7 +47,9 @@
   function open(url, handlers) {
     const es = new EventSource(url, { withCredentials: false });
     es.addEventListener("open", () => setLiveState(""));
-    es.addEventListener("error", () => setLiveState("reconnecting"));
+    es.addEventListener("error", () => {
+      setLiveState(es.readyState === EventSource.CLOSED ? "Session expired, reload" : "reconnecting");
+    });
     for (const [name, fn] of Object.entries(handlers)) {
       es.addEventListener(name, (ev) => fn(ev.data));
     }
@@ -61,7 +70,12 @@
   let lastRefresh = 0;
   let refreshTimer = 0;
   let refreshing = false;
+  let pending = false;
   function refreshSoon() {
+    if (refreshing) {
+      pending = true;
+      return;
+    }
     if (refreshTimer) return;
     const wait = Math.max(0, lastRefresh + REFRESH_GAP_MS - Date.now());
     refreshTimer = setTimeout(async () => {
@@ -71,45 +85,82 @@
     }, wait);
   }
 
+  function hasOpenPopover(el) {
+    try {
+      return el.matches(":popover-open") || el.querySelector(":popover-open") !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  function keepOpen(from, to) {
+    for (const d of $$("details[data-keep][open]", from)) {
+      const twin = to.querySelector(`details[data-keep="${CSS.escape(d.getAttribute("data-keep"))}"]`);
+      if (twin) twin.open = true;
+    }
+  }
+
   async function refresh() {
     if (refreshing) return;
     refreshing = true;
     try {
-      const res = await fetch(location.href, { credentials: "same-origin", cache: "no-store", headers: { Accept: "text/html" } });
+      const res = await fetch(location.href, {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "text/html", "X-Live-Refresh": "1" },
+      });
       if (!res.ok || new URL(res.url).pathname === "/login") return;
       const doc = new DOMParser().parseFromString(await res.text(), "text/html");
       for (const el of $$("[data-live-region]")) {
         const name = el.getAttribute("data-live-region");
         const fresh = doc.querySelector(`[data-live-region="${CSS.escape(name)}"]`);
         if (!fresh || fresh.outerHTML === el.outerHTML) continue;
-        if (el.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) continue;
+        if (hasOpenPopover(el) || el.contains(document.activeElement)) continue;
         const copy = document.importNode(fresh, true);
-        const result = el.querySelector("[data-command-result]");
-        const slot = copy.querySelector("[data-command-result]");
-        if (result && slot) slot.textContent = result.textContent;
+        keepOpen(el, copy);
         el.replaceWith(copy);
       }
     } catch {
       // The next message tries again.
     } finally {
       refreshing = false;
+      if (pending) {
+        pending = false;
+        refreshSoon();
+      }
     }
+  }
+
+  function wantsRefresh(root, m) {
+    const only = root.getAttribute("data-match-id");
+    if (only !== null) return String(m.id) === only;
+    if (document.querySelector(`[data-match-id="${attr(m.id)}"]`)) return true;
+    return root.getAttribute("data-page") === "1";
+  }
+
+  function matchHandler(root) {
+    const live = root.hasAttribute("data-live-reload");
+    return (raw) => {
+      const m = parse(raw);
+      if (!m || m.id == null) return;
+      if (live && wantsRefresh(root, m)) refreshSoon();
+    };
   }
 
   function initMatches() {
     const root = document.querySelector('[data-live="matches"], [data-live-matches]');
-    if (!root) return;
-    const live = root.hasAttribute("data-live-reload");
-    const only = root.getAttribute("data-match-id");
-
-    open("/live/matches", {
-      match(raw) {
-        const m = parse(raw);
-        if (!m || m.id == null) return;
-        if (only !== null && String(m.id) !== only) return;
-        if (live) refreshSoon();
-      },
-    });
+    if (!root) return null;
+    const id = root.getAttribute("data-match-id");
+    if (id !== null && /^\d+$/.test(id) && ($$(`[data-console="${attr(id)}"]`).length || $$(`[data-logger="${attr(id)}"]`).length)) {
+      open(`/admin/live/${id}`, {
+        match: matchHandler(root),
+        rcon: streamHandler("data-console", id, rconLines),
+        logger: streamHandler("data-logger", id, loggerLines),
+      });
+      return id;
+    }
+    open("/live/matches", { match: matchHandler(root) });
+    return null;
   }
 
   function appendLine(box, text) {
@@ -121,10 +172,19 @@
     if (nearBottom) box.scrollTop = box.scrollHeight;
   }
 
-  function initStream(selector, attrName, pathSuffix, event, format) {
+  function streamHandler(attrName, id, format) {
+    return (raw) => {
+      const m = parse(raw);
+      for (const box of $$(`[${attrName}="${attr(id)}"]`)) {
+        for (const text of format(m)) appendLine(box, text);
+      }
+    };
+  }
+
+  function initStream(selector, attrName, pathSuffix, event, format, skipId) {
     for (const box of $$(selector)) {
       const id = box.getAttribute(attrName);
-      if (!/^\d+$/.test(id)) continue;
+      if (!/^\d+$/.test(id) || id === skipId) continue;
       open(`/admin/live/${id}/${pathSuffix}`, {
         [event](raw) {
           const m = parse(raw);
@@ -164,25 +224,41 @@
     const res = await fetch(`/admin/matches/${encodeURIComponent(matchId)}/command`, {
       method: "POST",
       credentials: "same-origin",
-      redirect: "manual",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
       body,
     });
-    return res.ok || res.type === "opaqueredirect";
+    let reply = null;
+    if ((res.headers.get("Content-Type") || "").includes("application/json")) {
+      try {
+        reply = await res.json();
+      } catch {
+        reply = null;
+      }
+    }
+    if (res.ok && reply && !reply.error) return { ok: true };
+    if (reply && reply.error) return { ok: false, error: String(reply.error) };
+    if (res.redirected || !reply) return { ok: false, error: "Session expired, reload the page" };
+    return { ok: false, error: `HTTP ${res.status}` };
   }
 
   function showResult(text) {
     for (const el of $$("[data-command-result]")) el.textContent = text;
   }
 
-  async function run(matchId, action, arg) {
+  async function run(matchId, action, arg, btn) {
+    if (btn) btn.disabled = true;
     try {
-      const ok = await sendCommand(matchId, action, arg);
-      showResult(ok ? `Sent: ${action}` : `Failed: ${action}`);
-      return ok;
+      const r = await sendCommand(matchId, action, arg);
+      showResult(r.ok ? `Sent: ${action}` : `Failed: ${action}: ${r.error}`);
+      return r.ok;
     } catch {
       showResult(`Failed: ${action}`);
       return false;
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.blur();
+      }
     }
   }
 
@@ -193,7 +269,8 @@
       ev.preventDefault();
       const msg = btn.getAttribute("data-confirm");
       if (msg !== null && !confirm(msg || "Are you sure?")) return;
-      run(btn.getAttribute("data-match"), btn.getAttribute("data-command"), btn.getAttribute("data-arg") || "");
+      if (btn.disabled) return;
+      run(btn.getAttribute("data-match"), btn.getAttribute("data-command"), btn.getAttribute("data-arg") || "", btn);
     });
 
     for (const form of $$("[data-rcon-form]")) {
@@ -203,7 +280,8 @@
         const input = form.elements.namedItem("arg");
         const cmd = input && input.value.trim();
         if (!cmd) return;
-        const ok = await run(id, "executeCommand", cmd);
+        const submit = form.querySelector('[type="submit"]');
+        const ok = await run(id, "executeCommand", cmd, submit);
         if (ok) {
           input.value = "";
           for (const box of $$(`[data-console="${attr(id)}"]`)) appendLine(box, `> ${cmd}`);
@@ -213,9 +291,9 @@
   }
 
   function init() {
-    initMatches();
-    initStream("[data-console]", "data-console", "rcon", "rcon", rconLines);
-    initStream("[data-logger]", "data-logger", "logger", "logger", loggerLines);
+    const combined = initMatches();
+    initStream("[data-console]", "data-console", "rcon", "rcon", rconLines, combined);
+    initStream("[data-logger]", "data-logger", "logger", "logger", loggerLines, combined);
     initAlive();
     initCommands();
   }

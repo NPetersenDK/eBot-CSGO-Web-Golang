@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +41,7 @@ func setup(t *testing.T) *env {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /live/matches", h.Matches)
 	mux.HandleFunc("GET /admin/live/alive", h.Alive)
+	mux.HandleFunc("GET /admin/live/{id}", h.Console)
 	mux.HandleFunc("GET /admin/live/{id}/rcon", h.Rcon)
 	mux.HandleFunc("GET /admin/live/{id}/logger", h.Logger)
 	srv := httptest.NewServer(mux)
@@ -265,7 +267,8 @@ func TestHeartbeat(t *testing.T) {
 
 func TestSlowClientDoesNotBlock(t *testing.T) {
 	e := setup(t)
-	slow := &client{scope: scopeLogger, id: "9", ch: make(chan string, 1)}
+	slow := newClient(scopeLogger, "9")
+	slow.ch = make(chan event, 1)
 	e.hub.add(context.Background(), slow)
 
 	done := make(chan struct{})
@@ -307,5 +310,105 @@ func TestFrameMultiline(t *testing.T) {
 	got := frame("rcon", "a\nb")
 	if got != "event: rcon\ndata: a\ndata: b\n\n" || strings.Count(got, "\n\n") != 1 {
 		t.Errorf("frame = %q", got)
+	}
+}
+
+func TestConsoleCombinedStream(t *testing.T) {
+	e := setup(t)
+	s := e.open(t, "/admin/live/7")
+	s.next(t, ": connected")
+	waitFor(t, func() bool { return count(e.pushed(), "__true__") == 1 })
+
+	e.publish(t, "match", `{"message":"status","id":8}`)
+	e.publish(t, "match", `{"message":"status","id":7}`)
+	e.publish(t, "rcon", `{"id":8,"content":"other"}`)
+	e.publish(t, "rcon", `{"id":7,"content":"mine"}`)
+	e.publish(t, "logger", `{"id":7,"content":"log"}`)
+
+	s.next(t, "event: match")
+	s.next(t, `data: {"message":"status","id":7}`)
+	s.next(t, "event: rcon")
+	s.next(t, `data: {"id":7,"content":"mine"}`)
+	s.next(t, "event: logger")
+	s.next(t, `data: {"id":7,"content":"log"}`)
+
+	s.cancel()
+	waitFor(t, func() bool { return count(e.pushed(), "__false__") == 1 })
+}
+
+func TestConsoleInvalidID(t *testing.T) {
+	e := setup(t)
+	resp, err := http.Get(e.srv.URL + "/admin/live/abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Errorf("status %d", resp.StatusCode)
+	}
+}
+
+func TestClientCaps(t *testing.T) {
+	e := setup(t)
+	for i := 0; i < maxClientsPerIP; i++ {
+		c := newClient(scopeMatch, "")
+		c.ip = "10.0.0.1"
+		if !e.hub.add(context.Background(), c) {
+			t.Fatalf("client %d refused", i)
+		}
+	}
+	c := newClient(scopeMatch, "")
+	c.ip = "10.0.0.1"
+	if e.hub.add(context.Background(), c) {
+		t.Fatal("per-IP cap not enforced")
+	}
+	other := newClient(scopeMatch, "")
+	other.ip = "10.0.0.2"
+	if !e.hub.add(context.Background(), other) {
+		t.Fatal("other IP refused")
+	}
+	e.hub.remove(other)
+	if len(e.hub.perIP) != 1 {
+		t.Errorf("perIP not cleaned: %v", e.hub.perIP)
+	}
+
+	for i := 0; e.hub.public < maxPublicClients; i++ {
+		x := newClient(scopeMatch, "")
+		x.ip = "10.1." + strconv.Itoa(i/200) + "." + strconv.Itoa(i%200)
+		e.hub.add(context.Background(), x)
+	}
+	resp, err := http.Get(e.srv.URL + "/live/matches")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("status %d, want 503", resp.StatusCode)
+	}
+
+	// A full public budget must not take the admin console away.
+	admin := newClient(scopeRcon, "1")
+	if !e.hub.add(context.Background(), admin) {
+		t.Fatal("an admin stream was refused because spectators filled the public budget")
+	}
+	e.hub.remove(admin)
+	for i := 0; e.hub.admins < maxAdminClients; i++ {
+		e.hub.add(context.Background(), newClient(scopeRcon, "1"))
+	}
+	if e.hub.add(context.Background(), newClient(scopeLogger, "1")) {
+		t.Error("the admin budget is not enforced")
+	}
+}
+
+func TestViewerHostBehindAProxy(t *testing.T) {
+	r := httptest.NewRequest("GET", "/live/matches", nil)
+	r.RemoteAddr = "10.0.0.9:5000"
+	r.Header.Add("X-Forwarded-For", "1.1.1.1")
+	r.Header.Add("X-Forwarded-For", "2.2.2.2, 3.3.3.3")
+	if got := viewerHost(r, false); got != "10.0.0.9" {
+		t.Errorf("untrusted: %q", got)
+	}
+	if got := viewerHost(r, true); got != "3.3.3.3" {
+		t.Errorf("trusted: %q", got)
 	}
 }

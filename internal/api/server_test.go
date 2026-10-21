@@ -158,6 +158,16 @@ func (f *fakeStore) UpdateServer(_ context.Context, id int64, in store.ServerInp
 	defer f.mu.Unlock()
 	for i := range f.servers {
 		if f.servers[i].ID == id {
+			if in.IP != f.servers[i].IP {
+				if err := store.CheckServerAddress(in.IP); err != nil {
+					return err
+				}
+			}
+			if in.Hostname != f.servers[i].Hostname {
+				if err := store.CheckServerText("hostname", in.Hostname); err != nil {
+					return err
+				}
+			}
 			f.servers[i].IP, f.servers[i].Hostname = in.IP, in.Hostname
 			return nil
 		}
@@ -346,6 +356,25 @@ func TestCreateMatch(t *testing.T) {
 	}
 }
 
+func TestCreateMatchRejectsConsoleInjection(t *testing.T) {
+	e := newEnv(t, false)
+	for _, body := range []string{
+		`{"rules":"x","maps":["de_dust2; quit"]}`,
+		`{"rules":"x; sv_cheats 1; exec x"}`,
+		`{"rules":"x","team_a_name":"A\"B"}`,
+		`{"rules":"x","team_b_name":"A;B"}`,
+		`{"rules":"x","team_a_id":999,"team_a_name":"A\"B"}`,
+		`{"rules":"x","config_password":"p\"w"}`,
+		`{"rules":"x","team_a_flag":"d\"k"}`,
+	} {
+		want(t, e.do("POST", "/api/matches", body), 400)
+	}
+	if len(e.f.matches) != 4 {
+		t.Fatalf("a rejected request created a match: %d", len(e.f.matches))
+	}
+	want(t, e.do("POST", "/api/matches", `{"rules":"esl5on5","maps":["de_dust2"],"team_a_name":"Alpha","team_a_flag":"DK"}`), 201)
+}
+
 func TestStartArchiveDelete(t *testing.T) {
 	e := newEnv(t, false)
 	rr := e.do("POST", "/api/matches/2/start", "")
@@ -454,6 +483,12 @@ func TestServers(t *testing.T) {
 	if !strings.Contains(rr.Body.String(), `"ip":"1.1.1.1:27016"`) {
 		t.Fatalf("%s", rr.Body.String())
 	}
+	want(t, e.do("PUT", "/api/servers/7", `{"ip":"1.1.1.1:1","rcon":"r","hostname":"h2"}`), 200)
+	want(t, e.do("POST", "/api/servers", `{"ip":"1.1.1.1:1","rcon":"r","hostname":"h\"; quit"}`), 400)
+	want(t, e.do("POST", "/api/servers", `{"ip":"1.1.1.1:1","rcon":"r","hostname":"h","tv_ip":"x;y"}`), 400)
+	want(t, e.do("POST", "/api/servers", `{"ip":"gs.example.com;x:1","rcon":"r","hostname":"h"}`), 400)
+	want(t, e.do("PUT", "/api/servers/7", `{"ip":"1.1.1.1\";x:1","rcon":"r","hostname":"h"}`), 400)
+	want(t, e.do("PUT", "/api/servers/7", `{"ip":"1.1.1.1:1","rcon":"r","hostname":"a;b"}`), 400)
 	want(t, e.do("PUT", "/api/servers/7", `{"ip":"1.1.1.1:1","rcon":"r","hostname":"h2"}`), 200)
 	want(t, e.do("PUT", "/api/servers/70", `{"ip":"1.1.1.1:1","rcon":"r","hostname":"h2"}`), 404)
 	want(t, e.do("DELETE", "/api/servers/70", ""), 404)

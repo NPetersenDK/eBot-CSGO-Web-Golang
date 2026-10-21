@@ -70,9 +70,10 @@ Every variable is read in `internal/config/config.go`. Each one also accepts `NA
 | `EBOT_REDIS_PASSWORD` | (empty) | Redis password. |
 | `EBOT_REDIS_FROM_WS` | `ebot-from-ws` | Redis list the panel pushes bot commands to. The bot reads it. |
 | `EBOT_REDIS_TO_WS` | `ebot-to-ws` | Redis pub/sub channel the bot publishes live messages on. The panel reads it. |
-| `EBOT_SESSION_KEY` | (none) | Key that signs session cookies. Required, at least 32 bytes. |
+| `EBOT_SESSION_KEY` | (none) | Key that signs session cookies. Required, at least 32 bytes. The placeholder from `.env.example` is refused. |
 | `EBOT_INSECURE_COOKIES` | `false` | Plain HTTP and a random session key. Development only. |
-| `EBOT_TRUST_PROXY` | `false` | Use the right-most `X-Forwarded-For` address for the login rate limit. Enable only behind a proxy that sets it. |
+| `EBOT_TRUST_PROXY` | `false` | Take the visitor address from the last `X-Forwarded-For` value. It turns on the login limit per address and sets the per-address cap on live connections. Enable only behind a proxy that sets the header. |
+| `EBOT_TIMEZONE` | `UTC` | IANA time zone name, for example `Europe/Copenhagen`. Dates are shown and typed in this zone. They are stored as UTC. |
 | `EBOT_AUTO_MIGRATE` | `true` | Create the tables that are missing at start. It never alters or drops a table that exists. Set `false` to leave the database alone. |
 | `EBOT_DB_WAIT` | `60` | Seconds to wait for the database to accept connections at start. |
 | `EBOT_ADMIN_USER` | (empty) | Creates this admin account when the user table is empty. Needs `EBOT_ADMIN_PASSWORD`. |
@@ -169,6 +170,15 @@ curl -H "X-API-Key: $KEY" http://localhost:8080/api/matches
 ```
 
 `GET /api/health` and `GET /api/openapi.json` need no key.
+
+## Security notes
+
+- Password hashes stay `sha1(salt+password)` so the PHP panel can still verify them. This is weak if the database leaks.
+- Redis must be on a private network. Bot commands are encrypted but not authenticated.
+- API keys are full admin credentials, and `/api` returns RCON and match passwords on single items.
+- The panel rejects quotes, semicolons and control characters in the values the bot pastes into console commands (rules, map, team name, flag, match password).
+- Serve the panel over HTTPS behind a reverse proxy and keep `EBOT_INSECURE_COOKIES=false`. With secure cookies the panel also sends `Strict-Transport-Security`.
+- Set `EBOT_TRUST_PROXY=true` only behind a proxy that sets `X-Forwarded-For`. Otherwise a client can fake its address. With it off, logins are limited per username and address only, and the per-address limit and the per-address cap on live connections are not used, because behind a proxy every visitor would share one address.
 
 ## Kubernetes (Helm)
 

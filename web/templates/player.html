@@ -65,7 +65,7 @@
         <tbody>
           {{range .Rows}}
           <tr>
-            <td><input type="checkbox" name="row" value="{{.ID}}"{{if .Checked}} checked{{end}} aria-label="Pick this map"></td>
+            <td><input type="checkbox" name="row" value="{{.ID}}"{{if .Checked}} checked{{end}} aria-label="Pick match #{{.MatchID}} {{mapLabel .MapName}}"></td>
             <td class="id"><a href="/matches/{{.MatchID}}">#{{.MatchID}}</a></td>
             <td>{{date .Date}}</td>
             <td>{{.OwnTeam}}</td>

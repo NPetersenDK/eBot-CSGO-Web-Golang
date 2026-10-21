@@ -8,8 +8,8 @@
   {{else if .NeedsServer}}
   <form class="row wrap" method="post" action="{{.Path}}">
     <select name="server_id" aria-label="Server">
-      <option value="">Random free server</option>
-      {{range $.FreeServers}}<option value="{{.ID}}">{{if .Hostname}}{{.Hostname}} - {{end}}{{.IP}}</option>{{end}}
+      <option value="">{{if $.Match.ServerID}}Use the assigned server{{else}}Random free server{{end}}</option>
+      {{range $.FreeServers}}<option value="{{.ID}}"{{if $.Match.ServerID}}{{if eq .ID (deref $.Match.ServerID)}} selected{{end}}{{end}}>{{if .Hostname}}{{.Hostname}} - {{end}}{{.IP}}</option>{{end}}
     </select>
     <button class="btn sm {{.Style}}" type="submit">{{.Label}}</button>
   </form>
@@ -90,10 +90,9 @@
     <h2>Controls</h2>
     {{template "actions" .}}
     <div class="row wrap">
-      {{if not .Match.Enable}}<a class="btn sm" href="/admin/matches/{{.Match.ID}}/edit">Edit match</a>{{end}}
+      {{if .ShowEditLink}}<a class="btn sm" href="/admin/matches/{{.Match.ID}}/edit">Edit match</a>{{end}}
       {{if not .Match.Enable}}<a class="btn sm" href="/admin/matches/{{.Match.ID}}/scores">Edit scores</a>{{end}}
-      <a class="btn sm" href="/admin/matches/{{.Match.ID}}/log">Match log</a>
-      <span class="muted" data-command-result role="status"></span>
+      {{if .LogExists}}<a class="btn sm" href="/admin/matches/{{.Match.ID}}/log">Match log</a>{{end}}
     </div>
     {{if and (not .Match.Enable) (eq .Match.Status 0) .FreeServers}}
     <form class="row wrap" method="post" action="/admin/matches/{{.Match.ID}}/assign-server">
@@ -163,7 +162,8 @@
     {{end}}
 
     {{if .Rounds}}
-    <details>
+    {{$cur := .Current}}
+    <details data-keep="rounds-{{.Map.ID}}">
       <summary class="muted">Round summaries ({{len .Rounds}})</summary>
       <div class="table-wrap">
       <table class="table compact">
@@ -177,7 +177,7 @@
             <td>{{if eq .TeamWin "a"}}{{$.Data.Match.TeamAName}}{{else}}{{$.Data.Match.TeamBName}}{{end}} ({{if .CTWin}}CT{{else if .TWin}}T{{end}})</td>
             <td>{{.WinType}}</td>
             <td>{{if .BombExploded}}Exploded{{else if .BombDefused}}Defused{{else if .BombPlanted}}Planted{{end}}</td>
-            {{if $.IsAdmin}}<td>{{if $.Data.Match.Enable}}<button type="button" class="btn sm" data-command="goBackRounds" data-arg="{{.RoundID}}" data-match="{{$.Data.Match.ID}}" data-confirm="Reload the server to the start of round {{add .RoundID 1}}?">Reload to start of round {{add .RoundID 1}}</button>{{end}}</td>{{end}}
+            {{if $.IsAdmin}}<td>{{if and $.Data.Match.Enable $cur}}<button type="button" class="btn sm" data-command="goBackRounds" data-arg="{{.RoundID}}" data-match="{{$.Data.Match.ID}}" data-confirm="Reload the server to the start of round {{add .RoundID 1}}?">Reload to start of round {{add .RoundID 1}}</button>{{end}}</td>{{end}}
           </tr>
           {{end}}
         </tbody>

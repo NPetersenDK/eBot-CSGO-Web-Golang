@@ -21,7 +21,20 @@ import (
 const (
 	stateCookie   = "ebot_oidc_state"
 	idTokenCookie = "ebot_id_token"
+
+	idTokenPath      = "/logout"
+	maxLoginBody     = 8 << 10
+	maxUsernameBytes = 128
+	maxLogNameRunes  = 64
 )
+
+// logName shortens a user-supplied name for log lines.
+func logName(s string) string {
+	if r := []rune(s); len(r) > maxLogNameRunes {
+		return string(r[:maxLogNameRunes])
+	}
+	return s
+}
 
 // Handler serves /login, /logout and the OIDC routes.
 type Handler struct {
@@ -51,7 +64,7 @@ func NewHandler(ctx context.Context, cfg *config.Config, m *Manager, local Local
 		local:     local,
 		render:    render,
 		providers: providers,
-		limiter:   newLoginLimiter(10, 5*time.Minute, nil),
+		limiter:   newLoginLimiter(10, ipLimit(cfg.TrustProxy), 5*time.Minute, nil),
 	}
 	if cfg.OIDC.Issuer != "" {
 		if h.oidc, err = newOIDCClient(ctx, cfg.OIDC); err != nil {
@@ -65,13 +78,12 @@ func NewHandler(ctx context.Context, cfg *config.Config, m *Manager, local Local
 //
 //	GET  /login
 //	POST /login
-//	GET  /logout, POST /logout
+//	POST /logout
 //	GET  /auth/oidc/login
 //	GET  /auth/oidc/callback
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /login", h.loginPage)
 	mux.HandleFunc("POST /login", h.loginSubmit)
-	mux.HandleFunc("GET /logout", h.logout)
 	mux.HandleFunc("POST /logout", h.logout)
 	mux.HandleFunc("GET /auth/oidc/login", h.oidcLogin)
 	mux.HandleFunc("GET /auth/oidc/callback", h.oidcCallback)
@@ -125,40 +137,53 @@ func (h *Handler) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "local login is disabled", http.StatusForbidden)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxLoginBody)
 	if err := r.ParseForm(); err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	username := strings.TrimSpace(r.PostForm.Get("username"))
 	password := r.PostForm.Get("password")
 	next := localNext(r.PostForm.Get("next"))
-	key := strings.ToLower(username) + "|" + h.clientIP(r)
+	ip := h.clientIP(r)
+	if len(username) > maxUsernameBytes {
+		slog.Info("auth: login failed", "user", logName(username), "ip", ip)
+		h.render(w, r, http.StatusUnauthorized, "login", h.page(r, next, "Invalid username or password."))
+		return
+	}
+	user := strings.ToLower(username)
 
-	if h.limiter.blocked(key) {
-		slog.Warn("auth: login rate limited", "user", username, "ip", h.clientIP(r))
+	if !h.limiter.allow(user, ip) {
+		slog.Warn("auth: login rate limited", "user", logName(username), "ip", ip)
 		h.render(w, r, http.StatusTooManyRequests, "login", h.page(r, next, "Too many attempts. Try again later."))
 		return
 	}
 	s, err := h.local.VerifyLocal(r.Context(), username, password)
 	if errors.Is(err, ErrInvalidCredentials) {
-		h.limiter.recordFail(key)
-		slog.Info("auth: login failed", "user", username, "ip", h.clientIP(r))
+		slog.Info("auth: login failed", "user", logName(username), "ip", ip)
 		h.render(w, r, http.StatusUnauthorized, "login", h.page(r, next, "Invalid username or password."))
 		return
 	}
 	if err != nil {
+		h.limiter.refund(user, ip)
 		slog.Error("auth: local login error", "err", err)
 		h.render(w, r, http.StatusInternalServerError, "login", h.page(r, next, "Login is temporarily unavailable."))
 		return
 	}
 	s.Source = SourceLocal
 	if err := h.m.Issue(w, s); err != nil {
+		h.limiter.refund(user, ip)
 		slog.Error("auth: issue session", "err", err)
 		h.render(w, r, http.StatusInternalServerError, "login", h.page(r, next, "Login is temporarily unavailable."))
 		return
 	}
-	h.limiter.success(key)
-	slog.Info("auth: login", "user", s.Subject, "role", s.Role, "source", SourceLocal, "ip", h.clientIP(r))
+	h.limiter.success(user, ip)
+	slog.Info("auth: login", "user", logName(s.Subject), "role", s.Role, "source", SourceLocal, "ip", ip)
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
@@ -166,6 +191,7 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	s, _ := h.m.Read(r)
 	h.m.Clear(w)
 	h.writeIDToken(w, "")
+	h.clearLegacyIDToken(w)
 	if h.oidc != nil && s.Source == SourceOIDC {
 		if c, err := r.Cookie(idTokenCookie); err == nil && c.Value != "" {
 			if u := h.oidc.logoutURL(c.Value, h.postLogoutURL()); u != "" {
@@ -186,11 +212,16 @@ func (h *Handler) postLogoutURL() string {
 	return u.Scheme + "://" + u.Host + "/"
 }
 
+// clearLegacyIDToken removes the cookie older versions set on "/".
+func (h *Handler) clearLegacyIDToken(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{Name: idTokenCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: h.m.secure, SameSite: http.SameSiteLaxMode})
+}
+
 func (h *Handler) writeIDToken(w http.ResponseWriter, raw string) {
 	c := &http.Cookie{
 		Name:     idTokenCookie,
 		Value:    raw,
-		Path:     "/",
+		Path:     idTokenPath,
 		HttpOnly: true,
 		Secure:   h.m.secure,
 		SameSite: http.SameSiteLaxMode,
@@ -302,12 +333,18 @@ func randomToken() (string, error) {
 func (h *Handler) clientIP(r *http.Request) string { return clientIP(r, h.cfg.TrustProxy) }
 
 // clientIP is the right-most X-Forwarded-For hop when the proxy is trusted
-// (EBOT_TRUST_PROXY), else the peer address.
+// (EBOT_TRUST_PROXY), else the peer address. The header may come as several
+// lines, so the last value of the last line counts.
 func clientIP(r *http.Request, trustProxy bool) string {
-	if xff := r.Header.Get("X-Forwarded-For"); trustProxy && xff != "" {
-		parts := strings.Split(xff, ",")
-		if ip := strings.TrimSpace(parts[len(parts)-1]); ip != "" {
-			return ip
+	if trustProxy {
+		values := r.Header.Values("X-Forwarded-For")
+		for i := len(values) - 1; i >= 0; i-- {
+			parts := strings.Split(values[i], ",")
+			for j := len(parts) - 1; j >= 0; j-- {
+				if ip := strings.TrimSpace(parts[j]); ip != "" {
+					return ip
+				}
+			}
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -315,4 +352,14 @@ func clientIP(r *http.Request, trustProxy bool) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// ipLimit is the failed logins allowed per address in the window. It only makes
+// sense when the address is the real visitor, which needs EBOT_TRUST_PROXY
+// behind a proxy.
+func ipLimit(trustProxy bool) int {
+	if trustProxy {
+		return 30
+	}
+	return 0
 }

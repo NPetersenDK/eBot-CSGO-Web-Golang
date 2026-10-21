@@ -33,7 +33,12 @@ func dayPart(s string) string {
 	return s
 }
 
-func seasonEntity(st seasonStore) *entity {
+func seasonDefaults(now func() time.Time) url.Values {
+	today := now().Format(dateLayout)
+	return url.Values{"start": {today}, "end": {today}, "active": {"1"}}
+}
+
+func seasonEntity(st seasonStore, now func() time.Time) *entity {
 	fields := []field{
 		{Name: "name", Label: "Name", Type: "text", Required: true, Max: 50},
 		{Name: "event", Label: "Event", Type: "text", Required: true, Max: 50},
@@ -60,7 +65,6 @@ func seasonEntity(st seasonStore) *entity {
 			Link: v.Get("link"), Logo: v.Get("logo"), Active: v.Get("active") != "",
 		}
 	}
-	today := time.Now().Format(dateLayout)
 	return &entity{
 		Slug:       "seasons",
 		Singular:   "Season",
@@ -68,7 +72,7 @@ func seasonEntity(st seasonStore) *entity {
 		NewLabel:   "Create season",
 		Columns:    []string{"#ID", "Name", "Start", "End", "Link", "Status"},
 		Empty:      "No seasons yet.",
-		Defaults:   url.Values{"start": {today}, "end": {today}, "active": {"1"}},
+		DefaultsFn: func() url.Values { return seasonDefaults(now) },
 		Fields:     func(context.Context, bool) ([]field, error) { return fields, nil },
 		Deactivate: st.DeactivateSeason,
 		Rows: func(ctx context.Context) ([]listRow, error) {

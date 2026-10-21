@@ -1,5 +1,5 @@
-// Closes the user menu (a <details> element) on an outside click or Escape.
-document.addEventListener("click", (e) => {
+// Closes the user menu (a <details> element) on an outside press or Escape.
+document.addEventListener("pointerdown", (e) => {
   document.querySelectorAll("details.dropdown[open]").forEach((d) => {
     if (!d.contains(e.target)) d.removeAttribute("open");
   });

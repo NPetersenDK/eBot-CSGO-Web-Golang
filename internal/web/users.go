@@ -66,7 +66,7 @@ func userEntity(st userStore) *entity {
 					return ""
 				}},
 			{Name: "is_active", Label: "Active", Type: "checkbox"},
-			{Name: "is_super_admin", Label: "Super admin", Type: "checkbox", Help: "Super admins can log in and change everything."},
+			{Name: "is_super_admin", Label: "Super admin", Type: "checkbox", Help: "Only super admins can log in. They can change everything."},
 		}
 	}
 	input := func(v url.Values) store.UserInput {
@@ -108,7 +108,7 @@ func userEntity(st userStore) *entity {
 			rows := make([]listRow, 0, len(list))
 			for i := range list {
 				u := &list[i]
-				role := listCell{Text: "Viewer", Badge: "muted"}
+				role := listCell{Text: "No access", Badge: "muted"}
 				if u.IsSuperAdmin {
 					role = listCell{Text: "Super admin", Badge: "accent"}
 				}

@@ -83,7 +83,10 @@ func TestMatchLog(t *testing.T) {
 	wantStatus(t, e.do("GET", "/admin/matches/7/log", "", nil), 303)
 	wantStatus(t, e.do("GET", "/admin/matches/7/log/raw", "", nil), 303)
 
-	w := e.do("GET", "/admin/matches/7/log", "viewer", nil)
+	wantStatus(t, e.do("GET", "/admin/matches/7/log", "viewer", nil), 403)
+	wantStatus(t, e.do("GET", "/admin/matches/7/log/raw", "viewer", nil), 403)
+
+	w := e.do("GET", "/admin/matches/7/log", "admin", nil)
 	wantStatus(t, w, 200)
 	body := w.Body.String()
 	for _, want := range []string{`<iframe class="log" sandbox`, `src="/admin/matches/7/log/raw"`} {
@@ -92,7 +95,7 @@ func TestMatchLog(t *testing.T) {
 		}
 	}
 
-	w = e.do("GET", "/admin/matches/7/log/raw", "viewer", nil)
+	w = e.do("GET", "/admin/matches/7/log/raw", "admin", nil)
 	wantStatus(t, w, 200)
 	h := w.Header()
 	if h.Get("Content-Security-Policy") != "sandbox; default-src 'none'; style-src 'unsafe-inline'" {
@@ -105,9 +108,9 @@ func TestMatchLog(t *testing.T) {
 		t.Error("log content missing")
 	}
 
-	wantStatus(t, e.do("GET", "/admin/matches/8/log", "viewer", nil), 404)
-	wantStatus(t, e.do("GET", "/admin/matches/8/log/raw", "viewer", nil), 404)
-	wantStatus(t, e.do("GET", "/admin/matches/0/log/raw", "viewer", nil), 404)
-	wantStatus(t, e.do("GET", "/admin/matches/-7/log/raw", "viewer", nil), 404)
-	wantStatus(t, e.do("GET", "/admin/matches/07x/log/raw", "viewer", nil), 404)
+	wantStatus(t, e.do("GET", "/admin/matches/8/log", "admin", nil), 404)
+	wantStatus(t, e.do("GET", "/admin/matches/8/log/raw", "admin", nil), 404)
+	wantStatus(t, e.do("GET", "/admin/matches/0/log/raw", "admin", nil), 404)
+	wantStatus(t, e.do("GET", "/admin/matches/-7/log/raw", "admin", nil), 404)
+	wantStatus(t, e.do("GET", "/admin/matches/07x/log/raw", "admin", nil), 404)
 }

@@ -20,7 +20,7 @@
   {{end}}
 {{end}}
 {{define "content"}}
-<div data-live="matches" data-live-reload>
+<div data-live="matches" data-live-reload data-page="{{.Data.Page.Page}}">
   <div class="page-head">
     <h1>{{if .Data.Archived}}Archived matches{{else}}Matches{{end}}</h1>
     <span class="spacer"></span>

@@ -112,6 +112,11 @@ func (s *server) createMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 
+	checks := []error{
+		store.CheckRules(req.Rules),
+		store.CheckMapName(maps[0]),
+		store.CheckMatchPassword(req.ConfigPassword),
+	}
 	for _, t := range []struct {
 		id         *int64
 		name, flag *string
@@ -119,14 +124,22 @@ func (s *server) createMatch(w http.ResponseWriter, r *http.Request) {
 		{req.TeamAID, &req.TeamAName, &req.TeamAFlag},
 		{req.TeamBID, &req.TeamBName, &req.TeamBFlag},
 	} {
-		if t.id == nil {
-			continue
+		if t.id != nil {
+			team, err := s.store.GetTeam(ctx, *t.id)
+			if err == nil {
+				*t.name, *t.flag = team.Name, team.Flag
+				continue
+			}
+			if !isNotFound(err) {
+				storeError(w, err, "team not found")
+				return
+			}
 		}
-		team, err := s.store.GetTeam(ctx, *t.id)
-		if err == nil {
-			*t.name, *t.flag = team.Name, team.Flag
-		} else if !isNotFound(err) {
-			storeError(w, err, "team not found")
+		checks = append(checks, store.CheckTeamName(*t.name), store.CheckFlag(*t.flag))
+	}
+	for _, err := range checks {
+		if err != nil {
+			storeError(w, err, "")
 			return
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -19,6 +20,7 @@ const (
 	matchesPerPage = 12
 	homeMatches    = 10
 	homePlayers    = 10
+	maxListPage    = 1 << 20
 )
 
 // matchStore is the part of store.Store the match pages use.
@@ -58,13 +60,14 @@ type commandSender interface {
 }
 
 type matchHandlers struct {
-	app *App
-	st  matchStore
-	cmd commandSender
+	app   *App
+	st    matchStore
+	cmd   commandSender
+	cache *statsCache
 }
 
 func (a *App) registerMatchRoutes(mux *http.ServeMux) {
-	h := &matchHandlers{app: a, st: a.Store}
+	h := &matchHandlers{app: a, st: a.Store, cache: newStatsCache()}
 	if a.Cmd != nil {
 		h.cmd = a.Cmd
 	}
@@ -187,8 +190,6 @@ func matchActions(m store.Match) []Action {
 		add(command("Skip knife", "passknife", "", false))
 	case store.StatusKnife:
 		add(command("End knife", "forceknifeend", "", false))
-	case store.StatusEndKnife:
-		add(command("End knife", "forceknifeend", "", false))
 	case store.StatusWU1Side, store.StatusWU2Side, store.StatusWUOT1, store.StatusWUOT2:
 		add(command("End warmup or halftime", "forcestart", "", false))
 	case store.StatusFirstSide, store.StatusSecondSide, store.StatusOTFirst, store.StatusOTSecond:
@@ -248,7 +249,7 @@ func (h *matchHandlers) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page := homePage{Rows: h.rows(ms, false)}
-	if ps, err := h.st.ListPlayerStats(r.Context(), 0, homePlayers); err != nil {
+	if ps, err := h.cache.Players(r.Context(), h.st, 0, homePlayers); err != nil {
 		h.app.Log.Error("player stats", "err", err)
 	} else {
 		page.Players = ps
@@ -267,18 +268,23 @@ func (statsPage) Title() string { return "Statistics" }
 
 func (h *matchHandlers) stats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	season := positiveInt(r.URL.Query().Get("season"))
-	g, err := h.st.GlobalStats(ctx)
-	if err != nil {
-		h.app.ServerError(w, r, err)
-		return
-	}
-	players, err := h.st.ListPlayerStats(ctx, season, 0)
-	if err != nil {
-		h.app.ServerError(w, r, err)
-		return
-	}
 	seasons, err := h.st.ListSeasons(ctx)
+	if err != nil {
+		h.app.ServerError(w, r, err)
+		return
+	}
+	// Only a season that exists reaches the aggregate query, so an arbitrary
+	// ?season= cannot fill the cache or run an expensive query for nothing.
+	season := positiveInt(r.URL.Query().Get("season"))
+	if !slices.ContainsFunc(seasons, func(s store.Season) bool { return s.ID == season }) {
+		season = 0
+	}
+	g, err := h.cache.Global(ctx, h.st)
+	if err != nil {
+		h.app.ServerError(w, r, err)
+		return
+	}
+	players, err := h.cache.Players(ctx, h.st, season, 0)
 	if err != nil {
 		h.app.ServerError(w, r, err)
 		return
@@ -322,15 +328,13 @@ func (h *matchHandlers) list(w http.ResponseWriter, r *http.Request) {
 		SeasonID: positiveInt(q.Get("season")),
 		TeamID:   positiveInt(q.Get("team")),
 		Search:   strings.TrimSpace(q.Get("q")),
-		Page:     int(positiveInt(q.Get("page"))),
+		Page:     int(min(positiveInt(q.Get("page")), maxListPage)),
 		PerPage:  matchesPerPage,
 	}
-	if len(f.Search) > 100 {
-		f.Search = f.Search[:100]
+	if r := []rune(f.Search); len(r) > 100 {
+		f.Search = string(r[:100])
 	}
-	if f.Page < 1 {
-		f.Page = 1
-	}
+	f.Page = max(1, min(f.Page, maxListPage))
 	ms, page, err := h.st.ListMatches(ctx, f)
 	if err != nil {
 		h.app.ServerError(w, r, err)
@@ -409,6 +413,8 @@ type matchViewPage struct {
 	Controllable bool
 	ShowHostWarn bool
 	PlayedRounds int
+	LogExists    bool
+	ShowEditLink bool
 }
 
 func (p matchViewPage) Title() string {
@@ -511,6 +517,13 @@ func (h *matchHandlers) view(w http.ResponseWriter, r *http.Request) {
 
 	if isAdminRequest(r) {
 		data.Actions = matchActions(*m)
+		data.LogExists = logExists(h.app.Cfg, m.ID)
+		data.ShowEditLink = !m.Enable
+		for _, a := range data.Actions {
+			if a.Href == fmt.Sprintf("/admin/matches/%d/edit", m.ID) {
+				data.ShowEditLink = false
+			}
+		}
 		data.Controllable = controllable(m.IP)
 		data.ShowHostWarn = m.Enable && m.IP != "" && !data.Controllable
 		if !m.Enable && m.Status == store.StatusNotStarted {
