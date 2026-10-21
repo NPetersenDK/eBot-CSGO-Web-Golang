@@ -63,9 +63,10 @@
 
   <div class="form-grid">
     <label>Rules
-      <select name="rules">
-        {{range .RulesChoices}}<option value="{{.}}"{{if eq . $.Data.Form.Rules}} selected{{end}}>{{.}}</option>{{end}}
-      </select>
+      <input name="rules" value="{{.Form.Rules}}" list="rules-list" maxlength="200" autocomplete="off" required>
+      <datalist id="rules-list">
+        {{range .RulesChoices}}<option value="{{.}}">{{end}}
+      </datalist>
       <span class="hint">The name of the .cfg file without the extension (esl5on5.cfg is esl5on5).</span>
       {{with index $.Data.Errors "rules"}}<span class="field-error">{{.}}</span>{{end}}
     </label>
@@ -100,12 +101,12 @@
       </select>
       {{with index $.Data.Errors "overtime_max_round"}}<span class="field-error">{{.}}</span>{{end}}
     </label>
-    <label>Start date
+    <label class="autostart-field">Start date
       <input name="startdate" value="{{.Form.StartDate}}" placeholder="dd.mm.yyyy hh:mm">
       <span class="hint">Used when autostart is on. Format dd.mm.yyyy hh:mm.</span>
       {{with index $.Data.Errors "startdate"}}<span class="field-error">{{.}}</span>{{end}}
     </label>
-    <label>Start match
+    <label class="autostart-field">Start match
       <select name="auto_start_time">
         {{range .AutoStartOpts}}<option value="{{.Value}}"{{if eq .Value $.Data.Form.AutoStartTime}} selected{{end}}>{{.Label}}</option>{{end}}
       </select>

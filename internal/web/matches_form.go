@@ -269,6 +269,10 @@ func (h *matchHandlers) newForm(w http.ResponseWriter, r *http.Request) {
 // veto) and "CurrentMap" (stay on the server's map, for workshop maps). On
 // edit the stored name is kept as a choice, because the bot renames
 // "CurrentMap" to "CurrentMap-<map>" and a map may have left EBOT_MAPS.
+// rulesName is the file name the bot runs as "exec <rules>.cfg" over RCON, so
+// it must never contain a separator or a space.
+var rulesName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,200}$`)
+
 func mapChoices(maps []string, existing *store.Match) []string {
 	out := append(slices.Clone(maps), tbaMap, config.CurrentMap)
 	if existing != nil && existing.CurrentMap != nil && !slices.Contains(out, existing.CurrentMap.Name) {
@@ -428,15 +432,11 @@ func (h *matchHandlers) parseMatchForm(r *http.Request, refs matchRefs, existing
 	}
 
 	// Rules.
-	rules := slices.Clone(cfg.Rules)
-	if existing != nil && existing.Rules != "" {
-		rules = append(rules, existing.Rules)
-	}
 	switch {
 	case f.Rules == "":
 		errs["rules"] = "Required."
-	case !slices.Contains(rules, f.Rules):
-		errs["rules"] = "Choose a rules file from the list."
+	case !rulesName.MatchString(f.Rules):
+		errs["rules"] = "Use letters, digits, dot, dash and underscore only."
 	default:
 		in.Rules = f.Rules
 	}

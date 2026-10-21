@@ -28,7 +28,7 @@
         {{range .Choices}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
       </select>
       {{else if eq .Type "textarea"}}
-      <textarea name="{{.Name}}" rows="5"{{if .Max}} maxlength="{{.Max}}"{{end}}{{if .Required}} required{{end}}>{{.Value}}</textarea>
+      <textarea name="{{.Name}}" rows="8"{{if .Max}} maxlength="{{.Max}}"{{end}}{{if .Required}} required{{end}}>{{.Value}}</textarea>
       {{else if eq .Type "password"}}
       <input type="password" name="{{.Name}}" autocomplete="new-password"{{if .Max}} maxlength="{{.Max}}"{{end}}{{if .Required}} required{{end}}>
       {{else if eq .Type "number"}}

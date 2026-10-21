@@ -206,3 +206,22 @@ textarea {
 textarea:focus { outline: none; border-color: var(--accent); }
 .badge.accent { color: var(--accent); border-color: var(--accent); }
 iframe.log { width: 100%; height: 70vh; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+
+/* Filter and action rows. .card is a column, so rows must say so. */
+.toolbar { flex-direction: row; }
+.card.toolbar { padding: 14px 20px; }
+.actions { flex-wrap: nowrap; }
+.actions summary { list-style: none; cursor: pointer; }
+.actions summary::-webkit-details-marker { display: none; }
+.actions details[open] { display: flex; gap: 8px; }
+
+/* The live connection pill is empty while connected: take no space then. */
+[data-live-state]:empty { display: none; }
+
+/* Fields that only matter when the autostart switch is on. */
+.autostart-field { display: none; }
+form:has(input[name="auto_start"]:checked) .autostart-field { display: flex; }
+
+/* Long text gets the full row. */
+.form-grid > label:has(textarea) { grid-column: 1 / -1; }
+.form-grid textarea { width: 100%; min-height: 160px; resize: vertical; }

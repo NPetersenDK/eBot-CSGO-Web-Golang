@@ -471,18 +471,35 @@ func TestParseMatchForm(t *testing.T) {
 		}
 	})
 
-	t.Run("existing rules are kept", func(t *testing.T) {
+	t.Run("any safe rules name is accepted", func(t *testing.T) {
+		v := validMatchForm()
+		v.Set("rules", "gamemode_competitive")
+		in, errs := parseMatchWith(t, e, v, nil)
+		if len(errs) != 0 || in.Rules != "gamemode_competitive" {
+			t.Fatalf("errs=%v rules=%q", errs, in.Rules)
+		}
+	})
+
+	t.Run("rules cannot carry a second RCON command", func(t *testing.T) {
+		for _, bad := range []string{"rules; quit", "a b", "rules\nquit", "x/y", "rules.cfg\"; quit"} {
+			v := validMatchForm()
+			v.Set("rules", bad)
+			if _, errs := parseMatchWith(t, e, v, nil); errs["rules"] == "" {
+				t.Errorf("%q accepted", bad)
+			}
+		}
+	})
+
+	t.Run("existing round count is kept", func(t *testing.T) {
 		m := sampleMatch()
-		m.Rules = "legacy"
 		m.MaxRound = 7
 		v := validMatchForm()
-		v.Set("rules", "legacy")
 		v.Set("max_round", "7")
 		if _, errs := parseMatchWith(t, e, v, &m); len(errs) != 0 {
 			t.Fatalf("errs=%v", errs)
 		}
-		if _, errs := parseMatchWith(t, e, v, nil); errs["rules"] == "" || errs["max_round"] == "" {
-			t.Fatalf("legacy values must only pass for an existing match, got %v", errs)
+		if _, errs := parseMatchWith(t, e, v, nil); errs["max_round"] == "" {
+			t.Fatalf("a legacy round count must only pass for an existing match, got %v", errs)
 		}
 	})
 }
