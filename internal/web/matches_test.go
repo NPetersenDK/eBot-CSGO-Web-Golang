@@ -777,6 +777,10 @@ func TestMatchPagesRenderInLayout(t *testing.T) {
 		t.Error("lan mode and demo toggle not honoured")
 	}
 
+	rec = e.do("GET", "/admin/matches/5/scores", "admin", nil)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/matches/5" {
+		t.Fatalf("scores of a running match = %d %q, want a redirect to the match", rec.Code, rec.Header().Get("Location"))
+	}
 	rec = e.do("GET", "/admin/matches/6/scores", "admin", nil)
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "/admin/matches/6/scores/101") {
 		t.Fatalf("scores = %d", rec.Code)

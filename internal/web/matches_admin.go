@@ -228,6 +228,13 @@ func (h *matchHandlers) scores(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Like the PHP panel: the score can only be changed while the bot has
+	// stopped the match (a temporary stop or a finished match).
+	if m.Enable {
+		h.app.SetFlash(w, "err", "The match is in progress. Stop it first to edit the score.")
+		Redirect(w, r, matchURL(m.ID))
+		return
+	}
 	ctx := r.Context()
 	maps, err := h.st.ListMaps(ctx, m.ID)
 	if err != nil {

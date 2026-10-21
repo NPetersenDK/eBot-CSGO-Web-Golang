@@ -84,7 +84,7 @@
     {{template "actions" .}}
     <div class="row wrap">
       {{if not .Match.Enable}}<a class="btn sm" href="/admin/matches/{{.Match.ID}}/edit">Edit match</a>{{end}}
-      <a class="btn sm" href="/admin/matches/{{.Match.ID}}/scores">Edit scores</a>
+      {{if not .Match.Enable}}<a class="btn sm" href="/admin/matches/{{.Match.ID}}/scores">Edit scores</a>{{end}}
       <a class="btn sm" href="/admin/matches/{{.Match.ID}}/log">Match log</a>
       <span class="muted" data-command-result role="status"></span>
     </div>
