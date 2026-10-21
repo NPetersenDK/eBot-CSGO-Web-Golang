@@ -25,6 +25,17 @@
     </nav>
     <span class="spacer"></span>
     {{if .User}}
+    <details class="dropdown status-menu" data-status>
+      <summary class="status-pill" title="Service status">
+        <span class="dot" data-status-dot></span>
+        <span data-status-text>Checking</span>
+      </summary>
+      <div class="dropdown-menu">
+        <div class="dropdown-header">Status</div>
+        <div class="status-row"><span class="dot" data-dot="ebot"></span><span class="grow">eBot</span><span class="muted" data-state="ebot">Checking</span></div>
+        <div class="status-row"><span class="dot" data-dot="websocket"></span><span class="grow">Websocket</span><span class="muted" data-state="websocket">Checking</span></div>
+      </div>
+    </details>
     <details class="dropdown">
       <summary class="btn user-profile-button">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.2 18.6a7 7 0 0 1 11.6 0"/></svg>
@@ -55,6 +66,7 @@
   <footer class="footer muted">{{.Brand}}{{if .Cfg.Version}} {{.Cfg.Version}}{{end}}</footer>
 </div>
 <script src="/static/menu.js" defer></script>
+{{if .User}}<script src="/static/status.js" defer></script>{{end}}
 {{template "scripts" .}}
 </body>
 </html>{{end}}

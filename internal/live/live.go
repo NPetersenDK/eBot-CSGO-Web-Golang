@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -42,6 +43,15 @@ type Hub struct {
 	keepalive time.Duration
 	backoff   time.Duration
 
+	// redisUp is true while the subscription is established. botSeen is the
+	// unix time in nanoseconds of the last message from the bot, lastProbe
+	// the last time an alive check was sent.
+	redisUp   atomic.Bool
+	botSeen   atomic.Int64
+	lastProbe atomic.Int64
+	botTTL    time.Duration
+	probeGap  time.Duration
+
 	mu      sync.Mutex
 	clients map[*client]struct{}
 	loggers int
@@ -56,6 +66,8 @@ func New(cfg *config.Config, rdb *redis.Client, cmd *ebotcmd.Publisher) *Hub {
 		heartbeat: 15 * time.Second,
 		keepalive: 30 * time.Second,
 		backoff:   time.Second,
+		botTTL:    20 * time.Second,
+		probeGap:  10 * time.Second,
 		clients:   map[*client]struct{}{},
 	}
 }
@@ -90,6 +102,8 @@ func (h *Hub) subscribeOnce(ctx context.Context, onReady func()) error {
 	if _, err := ps.Receive(ctx); err != nil {
 		return err
 	}
+	h.redisUp.Store(true)
+	defer h.redisUp.Store(false)
 	onReady()
 	for {
 		msg, err := ps.ReceiveMessage(ctx)
@@ -119,6 +133,7 @@ func (h *Hub) handle(payload string) {
 	if err := json.Unmarshal([]byte(payload), &env); err != nil {
 		return
 	}
+	h.botSeen.Store(time.Now().UnixNano())
 	var in inner
 	parsed := json.Unmarshal([]byte(env.Data), &in) == nil
 	if parsed && in.Message == "ping" {
