@@ -34,13 +34,15 @@
             {{end}}
             <a class="btn sm" href="/admin/{{$slug}}/{{.ID}}/edit">Edit</a>
             {{if .CanDelete}}
-            <details class="advanced">
-              <summary class="btn sm ghost danger">Delete</summary>
-              <form method="post" action="/admin/{{$slug}}/{{.ID}}/delete">
-                <p class="hint">{{.DeleteText}}</p>
-                <button class="btn sm danger" type="submit">Yes, delete</button>
-              </form>
-            </details>
+            <button type="button" class="btn sm ghost danger" popovertarget="delete-{{$slug}}-{{.ID}}">Delete</button>
+            <div id="delete-{{$slug}}-{{.ID}}" popover class="confirm-box">
+              <h3>Delete?</h3>
+              <p class="muted">{{.DeleteText}}</p>
+              <div class="row">
+                <form method="post" action="/admin/{{$slug}}/{{.ID}}/delete"><button class="btn danger" type="submit">Yes, delete</button></form>
+                <button type="button" class="btn ghost" popovertarget="delete-{{$slug}}-{{.ID}}" popovertargetaction="hide">Cancel</button>
+              </div>
+            </div>
             {{end}}
           </div>
           {{end}}

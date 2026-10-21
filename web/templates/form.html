@@ -48,13 +48,19 @@
   </div>
 </form>
 {{if .DeleteURL}}
-<details class="advanced card">
-  <summary>Delete</summary>
-  <form method="post" action="{{.DeleteURL}}">
-    <p class="hint">{{.DeleteText}}</p>
-    <button class="btn danger" type="submit">Yes, delete</button>
-  </form>
-</details>
+<div class="card">
+  <div class="row">
+    <button type="button" class="btn ghost danger" popovertarget="delete-this">Delete</button>
+  </div>
+</div>
+<div id="delete-this" popover class="confirm-box">
+  <h3>Delete?</h3>
+  <p class="muted">{{.DeleteText}}</p>
+  <div class="row">
+    <form method="post" action="{{.DeleteURL}}"><button class="btn danger" type="submit">Yes, delete</button></form>
+    <button type="button" class="btn ghost" popovertarget="delete-this" popovertargetaction="hide">Cancel</button>
+  </div>
+</div>
 {{end}}
 {{end}}
 {{end}}

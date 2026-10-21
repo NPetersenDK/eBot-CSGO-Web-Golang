@@ -213,7 +213,6 @@ iframe.log { width: 100%; height: 70vh; border: 1px solid var(--border); border-
 .actions { flex-wrap: nowrap; }
 .actions summary { list-style: none; cursor: pointer; }
 .actions summary::-webkit-details-marker { display: none; }
-.actions details[open] { display: flex; gap: 8px; }
 
 /* The live connection pill is empty while connected: take no space then. */
 [data-live-state]:empty { display: none; }
@@ -318,3 +317,20 @@ table.sortable tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
 .nav .dropdown-item:hover { background: rgba(74, 144, 226, 0.2); color: var(--text); text-decoration: none; }
 a.dropdown-item { color: var(--text); text-decoration: none; }
 a.dropdown-item:hover { text-decoration: none; }
+
+/* Confirm boxes: a popover in the top layer, so opening one never moves the
+   buttons in the row. Browsers without popover support keep it hidden. */
+.confirm-box {
+  margin: auto; padding: 20px; width: min(420px, 90vw);
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.confirm-box::backdrop { background: rgba(0, 0, 0, 0.55); }
+.confirm-box h3 { margin: 0 0 6px; font-size: 18px; }
+.confirm-box p { margin: 0 0 16px; }
+.confirm-box .row { gap: 8px; }
+.confirm-box form { margin: 0; }
+@supports not selector(:popover-open) {
+  .confirm-box { display: none; }
+}

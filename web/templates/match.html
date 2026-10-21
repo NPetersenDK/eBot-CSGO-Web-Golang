@@ -14,10 +14,15 @@
     <button class="btn sm {{.Style}}" type="submit">{{.Label}}</button>
   </form>
   {{else if .Confirm}}
-  <details>
-    <summary class="btn sm {{.Style}}">{{.Label}}</summary>
-    <form method="post" action="{{.Path}}"><button class="btn sm danger" type="submit">Confirm: {{.Label}}</button></form>
-  </details>
+  <button type="button" class="btn sm {{.Style}}" popovertarget="confirm{{.Path}}">{{.Label}}</button>
+  <div id="confirm{{.Path}}" popover class="confirm-box">
+    <h3>{{.Label}}?</h3>
+    <p class="muted">This is done for match #{{$.Match.ID}}.</p>
+    <div class="row">
+      <form method="post" action="{{.Path}}"><button class="btn {{if eq .Style "danger"}}danger{{else}}primary{{end}}" type="submit">Yes, {{.Label}}</button></form>
+      <button type="button" class="btn ghost" popovertarget="confirm{{.Path}}" popovertargetaction="hide">Cancel</button>
+    </div>
+  </div>
   {{else}}
   <form method="post" action="{{.Path}}"><button class="btn sm {{.Style}}" type="submit">{{.Label}}</button></form>
   {{end}}

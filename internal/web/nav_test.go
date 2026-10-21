@@ -87,3 +87,42 @@ func TestNavigationMarksManagementActive(t *testing.T) {
 		}
 	}
 }
+
+func TestConfirmBoxesDoNotSitInTheRow(t *testing.T) {
+	e := newMatchTestEnv(t)
+	for _, path := range []string{"/matches", "/matches/6"} {
+		body := e.do("GET", path, "admin", nil).Body.String()
+		if !strings.Contains(body, `popover class="confirm-box"`) {
+			t.Errorf("%s has no confirm box", path)
+		}
+		if strings.Contains(body, "Confirm: ") {
+			t.Errorf("%s still has the inline confirm button", path)
+		}
+		// Every button points at a box that exists, and every box has a Cancel.
+		for _, id := range between(body, `popovertarget="`, `"`) {
+			if !strings.Contains(body, `id="`+id+`" popover`) {
+				t.Errorf("%s: popovertarget %q has no box", path, id)
+			}
+		}
+		if n, c := strings.Count(body, `class="confirm-box"`), strings.Count(body, `popovertargetaction="hide"`); n != c {
+			t.Errorf("%s: %d boxes but %d cancel buttons", path, n, c)
+		}
+	}
+}
+
+func between(s, open, closeStr string) []string {
+	var out []string
+	for {
+		i := strings.Index(s, open)
+		if i < 0 {
+			return out
+		}
+		s = s[i+len(open):]
+		j := strings.Index(s, closeStr)
+		if j < 0 {
+			return out
+		}
+		out = append(out, s[:j])
+		s = s[j:]
+	}
+}
