@@ -5,7 +5,7 @@
 >
 > Most of it has probably not been tested, and large parts were written with the help of AI. Review it and test it before you rely on it.
 
-The match admin panel for the eBot CS:GO bot, written in Go. It is a rewrite of the PHP panel [eBot-CSGO-Web](https://github.com/deStrO/eBot-CSGO-Web). It runs against the same MySQL database and the same Redis as the PHP panel and the bot.
+The match admin panel for the eBot CS:GO bot, written in Go. It is a rewrite of the PHP panel [eBot-CSGO-Web](https://github.com/NPetersenDK/eBot-CSGO-Web). It runs against the same MySQL database and the same Redis as the PHP panel and the bot.
 
 ## How it differs from the PHP panel
 
@@ -28,7 +28,7 @@ Both panels use one MySQL database (`ebotv3` by default) and one Redis.
 
 ## Quick start with Docker Compose
 
-Requirements: Docker with the Compose plugin, and the eBot-CSGO bot image (built from `../eBot-CSGO`, see `EBOT_BOT_IMAGE` below).
+Requirements: Docker with the Compose plugin, and the eBot-CSGO bot image (built from [eBot-CSGO](https://github.com/NPetersenDK/eBot-CSGO), see `EBOT_BOT_IMAGE` below).
 
 ```sh
 cd deploy
