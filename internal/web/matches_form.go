@@ -195,7 +195,7 @@ func formFromMatch(m store.Match, maps []store.Map) matchFormValues {
 		f.ServerID = strconv.FormatInt(*m.ServerID, 10)
 	}
 	if m.StartDate != nil {
-		f.StartDate = m.StartDate.Format(matchStartDateLayout)
+		f.StartDate = m.StartDate.Local().Format(matchStartDateLayout)
 	} else {
 		f.StartDate = time.Now().Format(matchStartDateLayout)
 	}

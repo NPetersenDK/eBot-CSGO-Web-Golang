@@ -280,11 +280,11 @@ func TestLocalNext(t *testing.T) {
 func TestClientIP(t *testing.T) {
 	r := httptest.NewRequest("GET", "/", nil)
 	r.RemoteAddr = "10.0.0.1:5555"
-	if got := clientIP(r); got != "10.0.0.1" {
+	if got := clientIP(r, true); got != "10.0.0.1" {
 		t.Errorf("remote: %q", got)
 	}
 	r.Header.Set("X-Forwarded-For", "1.1.1.1, 2.2.2.2")
-	if got := clientIP(r); got != "2.2.2.2" {
+	if got := clientIP(r, true); got != "2.2.2.2" {
 		t.Errorf("xff: %q", got)
 	}
 }
@@ -474,5 +474,14 @@ func TestTemplates(t *testing.T) {
 	out = render("denied", DeniedPage{Subject: "s1", Name: "<b>x</b>", Claim: "roles", Values: []string{"a", "b"}})
 	if !strings.Contains(out, "s1") || !strings.Contains(out, "a, b") || strings.Contains(out, "<b>x</b>") {
 		t.Errorf("denied output wrong: %s", out)
+	}
+}
+
+func TestClientIPIgnoresForwardedForUnlessTrusted(t *testing.T) {
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "10.0.0.1:5555"
+	r.Header.Set("X-Forwarded-For", "9.9.9.9")
+	if got := clientIP(r, false); got != "10.0.0.1" {
+		t.Errorf("untrusted proxy: %q", got)
 	}
 }

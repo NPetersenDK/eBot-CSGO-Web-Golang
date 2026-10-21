@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -89,11 +90,16 @@ func run() error {
 
 	handler := securityHeaders(sameOriginGuard(sessions.Middleware(st)(mux)))
 
+	// Streaming handlers use the request context. Cancelling the base context
+	// on shutdown ends them, so Shutdown does not wait for open event streams.
+	baseCtx, cancelBase := context.WithCancel(context.Background())
+	defer cancelBase()
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
+		BaseContext:       func(net.Listener) context.Context { return baseCtx },
 	}
 
 	go func() { _ = hub.Run(ctx) }()
@@ -110,6 +116,7 @@ func run() error {
 		return err
 	case <-ctx.Done():
 	}
+	cancelBase()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)

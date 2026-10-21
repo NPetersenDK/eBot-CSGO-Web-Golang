@@ -122,31 +122,31 @@ func expandServers(in ServerCreate) ([]newServer, error) {
 	switch in.Mode {
 	case "single":
 		if !ipv4Re.MatchString(host) || !validPort(in.Port) {
-			return nil, errors.New("unknown server format")
+			return nil, invalid("unknown server format")
 		}
 		return []newServer{{host + ":" + strconv.Itoa(in.Port), in.Hostname}}, nil
 	case "hostname":
 		if !dnsHostRe.MatchString(host) || !validPort(in.Port) {
-			return nil, errors.New("unknown server format")
+			return nil, invalid("unknown server format")
 		}
 		return []newServer{{host + ":" + strconv.Itoa(in.Port), in.Hostname}}, nil
 	case "range":
 		if !validPort(in.Port) || in.PortEnd < in.Port || in.PortEnd > 65535 {
-			return nil, errors.New("invalid port range")
+			return nil, invalid("invalid port range")
 		}
 		hosts := []string{host}
 		if m := ipv4RangeRe.FindStringSubmatch(host); m != nil {
 			start, _ := strconv.Atoi(m[2])
 			end, _ := strconv.Atoi(m[3])
 			if start > end || end > 255 {
-				return nil, errors.New("invalid address range")
+				return nil, invalid("invalid address range")
 			}
 			hosts = hosts[:0]
 			for i := start; i <= end; i++ {
 				hosts = append(hosts, m[1]+strconv.Itoa(i))
 			}
 		} else if !ipv4Re.MatchString(host) {
-			return nil, errors.New("unknown server format")
+			return nil, invalid("unknown server format")
 		}
 		var out []newServer
 		for _, h := range hosts {
@@ -156,7 +156,7 @@ func expandServers(in ServerCreate) ([]newServer, error) {
 		}
 		return out, nil
 	}
-	return nil, errors.New("unknown server mode")
+	return nil, invalid("unknown server mode")
 }
 
 // CreateServers returns the number of servers created.

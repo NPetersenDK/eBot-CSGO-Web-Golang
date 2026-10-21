@@ -132,17 +132,17 @@ func (h *Handler) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.PostForm.Get("username"))
 	password := r.PostForm.Get("password")
 	next := localNext(r.PostForm.Get("next"))
-	key := strings.ToLower(username) + "|" + clientIP(r)
+	key := strings.ToLower(username) + "|" + h.clientIP(r)
 
 	if h.limiter.blocked(key) {
-		slog.Warn("auth: login rate limited", "user", username, "ip", clientIP(r))
+		slog.Warn("auth: login rate limited", "user", username, "ip", h.clientIP(r))
 		h.render(w, r, http.StatusTooManyRequests, "login", h.page(r, next, "Too many attempts. Try again later."))
 		return
 	}
 	s, err := h.local.VerifyLocal(r.Context(), username, password)
 	if errors.Is(err, ErrInvalidCredentials) {
 		h.limiter.recordFail(key)
-		slog.Info("auth: login failed", "user", username, "ip", clientIP(r))
+		slog.Info("auth: login failed", "user", username, "ip", h.clientIP(r))
 		h.render(w, r, http.StatusUnauthorized, "login", h.page(r, next, "Invalid username or password."))
 		return
 	}
@@ -158,16 +158,16 @@ func (h *Handler) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.limiter.success(key)
-	slog.Info("auth: login", "user", s.Subject, "role", s.Role, "source", SourceLocal, "ip", clientIP(r))
+	slog.Info("auth: login", "user", s.Subject, "role", s.Role, "source", SourceLocal, "ip", h.clientIP(r))
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	s, _ := h.m.Read(r)
 	h.m.Clear(w)
+	h.writeIDToken(w, "")
 	if h.oidc != nil && s.Source == SourceOIDC {
 		if c, err := r.Cookie(idTokenCookie); err == nil && c.Value != "" {
-			h.writeIDToken(w, "")
 			if u := h.oidc.logoutURL(c.Value, h.postLogoutURL()); u != "" {
 				http.Redirect(w, r, u, http.StatusSeeOther)
 				return
@@ -190,7 +190,7 @@ func (h *Handler) writeIDToken(w http.ResponseWriter, raw string) {
 	c := &http.Cookie{
 		Name:     idTokenCookie,
 		Value:    raw,
-		Path:     "/auth",
+		Path:     "/",
 		HttpOnly: true,
 		Secure:   h.m.secure,
 		SameSite: http.SameSiteLaxMode,
@@ -262,7 +262,7 @@ func (h *Handler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	flow, ok := h.readFlow(r)
 	if !ok {
-		slog.Warn("auth: oidc state invalid", "ip", clientIP(r))
+		slog.Warn("auth: oidc state invalid", "ip", h.clientIP(r))
 		http.Error(w, "invalid login state, try again", http.StatusBadRequest)
 		return
 	}
@@ -299,9 +299,12 @@ func randomToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// clientIP is the right-most X-Forwarded-For hop, else the peer address.
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+func (h *Handler) clientIP(r *http.Request) string { return clientIP(r, h.cfg.TrustProxy) }
+
+// clientIP is the right-most X-Forwarded-For hop when the proxy is trusted
+// (EBOT_TRUST_PROXY), else the peer address.
+func clientIP(r *http.Request, trustProxy bool) string {
+	if xff := r.Header.Get("X-Forwarded-For"); trustProxy && xff != "" {
 		parts := strings.Split(xff, ",")
 		if ip := strings.TrimSpace(parts[len(parts)-1]); ip != "" {
 			return ip

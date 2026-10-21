@@ -50,8 +50,10 @@ type Config struct {
 	RedisFromWS   string
 	RedisToWS     string
 
-	SessionKey         []byte
-	InsecureCookies    bool
+	SessionKey      []byte
+	InsecureCookies bool
+	// TrustProxy makes the login rate limiter use X-Forwarded-For.
+	TrustProxy         bool
 	AdminUser          string
 	AdminPassword      string
 	LocalLoginDisabled bool
@@ -94,6 +96,7 @@ func Load(getenv func(string) string) (*Config, error) {
 		RedisToWS:     e.str("EBOT_REDIS_TO_WS", "ebot-to-ws"),
 
 		InsecureCookies:    e.boolean("EBOT_INSECURE_COOKIES", false),
+		TrustProxy:         e.boolean("EBOT_TRUST_PROXY", false),
 		AdminUser:          e.str("EBOT_ADMIN_USER", ""),
 		AdminPassword:      e.str("EBOT_ADMIN_PASSWORD", ""),
 		LocalLoginDisabled: e.boolean("EBOT_LOCAL_LOGIN_DISABLED", false),

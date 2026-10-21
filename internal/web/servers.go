@@ -56,7 +56,7 @@ func serverEntity(st serverStore) *entity {
 				}
 				return ""
 			}},
-		{Name: "port_end", Label: "Last port", Type: "number", Help: "Range mode only. Creates one server per port from Port through Last port.",
+		{Name: "port_end", Label: "Last port", Type: "number", ValidateEmpty: true, Help: "Range mode only. Creates one server per port from Port through Last port.",
 			Validate: func(v string, f url.Values) string {
 				if f.Get("mode") != "range" {
 					return ""

@@ -15,7 +15,7 @@
       <a href="/matches" {{if eq .Path "/matches"}}class="active"{{end}}>Matches</a>
       <a href="/matches?status=archived">Archived</a>
       {{if .User}}
-      <a href="/admin/matches/new" {{if eq .Path "/admin/matches/new"}}class="active"{{end}}>New match</a>
+      {{if .IsAdmin}}<a href="/admin/matches/new" {{if eq .Path "/admin/matches/new"}}class="active"{{end}}>New match</a>{{end}}
       <a href="/admin/servers" {{if eq .Path "/admin/servers"}}class="active"{{end}}>Servers</a>
       <a href="/admin/teams" {{if eq .Path "/admin/teams"}}class="active"{{end}}>Teams</a>
       <a href="/admin/seasons" {{if eq .Path "/admin/seasons"}}class="active"{{end}}>Seasons</a>

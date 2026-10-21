@@ -75,7 +75,7 @@ type createMatchRequest struct {
 	OvertimeStartmoney *int  `json:"overtime_startmoney"`
 
 	Maps []string `json:"maps"`
-	// Side is accepted for compatibility. The store has no per-map side input.
+	// Side is the starting side, "ct" or "t". Empty picks one at random.
 	Side string `json:"side"`
 
 	ServerID *int64 `json:"server_id"`

@@ -363,7 +363,7 @@ func insertMap(ctx context.Context, q execer, matchID int64, mi MapInput, side s
 
 func (s *Store) CreateMatch(ctx context.Context, in MatchInput) (int64, error) {
 	if len(in.Maps) != 1 {
-		return 0, errors.New("a match is created with exactly one map")
+		return 0, invalid("a match is created with exactly one map")
 	}
 	side, err := startSide(in.Side)
 	if err != nil {
@@ -421,7 +421,7 @@ func lockMatch(ctx context.Context, tx *sql.Tx, id int64) (enable bool, status i
 
 func (s *Store) UpdateMatch(ctx context.Context, id int64, in MatchInput) error {
 	if len(in.Maps) != 1 {
-		return errors.New("a match is edited with exactly one map")
+		return invalid("a match is edited with exactly one map")
 	}
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		enable, _, err := lockMatch(ctx, tx, id)
@@ -579,12 +579,15 @@ func ensureAuthKey(ctx context.Context, tx *sql.Tx, id int64) error {
 // status=1, scores zeroed, config_authkey generated when empty.
 func (s *Store) StartMatch(ctx context.Context, id, serverID int64) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		enable, _, err := lockMatch(ctx, tx, id)
+		enable, status, err := lockMatch(ctx, tx, id)
 		if err != nil {
 			return err
 		}
 		if enable {
 			return ErrMatchEnabled
+		}
+		if status == StatusArchived {
+			return invalid("an archived match cannot be started")
 		}
 		ip, err := serverIP(ctx, tx, serverID, true)
 		if err != nil {
@@ -615,8 +618,12 @@ func (s *Store) StartMatch(ctx context.Context, id, serverID int64) error {
 // AssignServer sets the server without starting the match.
 func (s *Store) AssignServer(ctx context.Context, id, serverID int64) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		if _, _, err := lockMatch(ctx, tx, id); err != nil {
+		enable, _, err := lockMatch(ctx, tx, id)
+		if err != nil {
 			return err
+		}
+		if enable {
+			return ErrMatchEnabled
 		}
 		ip, err := serverIP(ctx, tx, serverID, false)
 		if err != nil {
@@ -665,8 +672,12 @@ func (s *Store) RetryMatch(ctx context.Context, id int64) error {
 
 func (s *Store) ResetMatch(ctx context.Context, id int64) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		if _, _, err := lockMatch(ctx, tx, id); err != nil {
+		enable, status, err := lockMatch(ctx, tx, id)
+		if err != nil {
 			return err
+		}
+		if enable && IsRunning(status) {
+			return ErrMatchEnabled
 		}
 		ids, err := mapIDs(ctx, tx, id)
 		if err != nil {

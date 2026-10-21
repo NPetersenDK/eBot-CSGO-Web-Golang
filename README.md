@@ -90,6 +90,7 @@ not both. An empty value means the default is used.
 | `EBOT_REDIS_TO_WS` | `ebot-to-ws` | Redis pub/sub channel the bot publishes live messages on. The panel reads it. |
 | `EBOT_SESSION_KEY` | (none) | Key that signs session cookies. Required, at least 32 bytes. |
 | `EBOT_INSECURE_COOKIES` | `false` | Plain HTTP and a random session key. Development only. |
+| `EBOT_TRUST_PROXY` | `false` | Use the right-most `X-Forwarded-For` address for the login rate limit. Enable only behind a proxy that sets it. |
 | `EBOT_ADMIN_USER` | (empty) | Creates this admin account when the user table is empty. Needs `EBOT_ADMIN_PASSWORD`. |
 | `EBOT_ADMIN_PASSWORD` | (empty) | Password for the account above. |
 | `EBOT_LOCAL_LOGIN_DISABLED` | `false` | Hides the username and password form. Needs `EBOT_OIDC_ISSUER`. |

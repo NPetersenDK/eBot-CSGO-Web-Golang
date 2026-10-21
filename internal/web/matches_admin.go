@@ -47,6 +47,8 @@ func (h *matchHandlers) finish(w http.ResponseWriter, r *http.Request, err error
 		h.app.SetFlash(w, "err", "The match is running. Stop it first.")
 	case errors.Is(err, store.ErrServerBusy):
 		h.app.SetFlash(w, "err", "That server is in use by another match.")
+	case errors.Is(err, store.ErrInvalid):
+		h.app.SetFlash(w, "err", err.Error())
 	default:
 		h.app.ServerError(w, r, err)
 		return

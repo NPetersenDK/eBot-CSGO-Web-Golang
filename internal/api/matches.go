@@ -102,6 +102,14 @@ func (s *server) createMatch(w http.ResponseWriter, r *http.Request) {
 	if len(maps) == 0 {
 		maps = []string{"tba"}
 	}
+	if len(maps) > 1 {
+		writeError(w, http.StatusBadRequest, "maps takes one map, the bot creates the other maps of a series")
+		return
+	}
+	if req.Side != "" && req.Side != "ct" && req.Side != "t" {
+		writeError(w, http.StatusBadRequest, "side must be ct or t")
+		return
+	}
 	ctx := r.Context()
 
 	for _, t := range []struct {
@@ -170,9 +178,8 @@ func (s *server) createMatch(w http.ResponseWriter, r *http.Request) {
 	if req.OvertimeStartmoney != nil {
 		in.OvertimeStartMoney = *req.OvertimeStartmoney
 	}
-	for _, name := range maps {
-		in.Maps = append(in.Maps, store.MapInput{Name: name, PickedBy: "default"})
-	}
+	in.Maps = []store.MapInput{{Name: maps[0], PickedBy: "default"}}
+	in.Side = req.Side
 
 	id, err := s.store.CreateMatch(ctx, in)
 	if err != nil {

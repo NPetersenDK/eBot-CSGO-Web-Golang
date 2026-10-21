@@ -75,9 +75,9 @@ func (h *matchHandlers) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /matches", h.list)
 	mux.HandleFunc("GET /matches/{id}", h.view)
 
-	mux.Handle("GET /admin/matches/new", user(h.newForm))
+	mux.Handle("GET /admin/matches/new", admin(h.newForm))
 	mux.Handle("POST /admin/matches", admin(h.create))
-	mux.Handle("GET /admin/matches/{id}/edit", user(h.editForm))
+	mux.Handle("GET /admin/matches/{id}/edit", admin(h.editForm))
 	mux.Handle("POST /admin/matches/{id}", admin(h.update))
 	mux.Handle("POST /admin/matches/{id}/start", admin(h.start))
 	mux.Handle("POST /admin/matches/{id}/assign-server", admin(h.assignServer))

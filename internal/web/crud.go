@@ -34,6 +34,8 @@ type field struct {
 	// Validate runs after the generic checks on a non-empty value. It returns
 	// an error message or "".
 	Validate func(value string, form url.Values) string
+	// ValidateEmpty runs Validate for an empty optional value too.
+	ValidateEmpty bool
 }
 
 type optionView struct {
@@ -364,6 +366,8 @@ func (a *App) submit(w http.ResponseWriter, r *http.Request, e *entity, id int64
 			errs = fe
 		case errors.As(err, &ue):
 			formErr = string(ue)
+		case errors.Is(err, store.ErrInvalid):
+			formErr = err.Error()
 		default:
 			a.ServerError(w, r, err)
 			return
@@ -426,6 +430,9 @@ func validateField(f field, vals url.Values) string {
 		if f.Required {
 			return "Required."
 		}
+		if f.ValidateEmpty && f.Validate != nil {
+			return f.Validate("", vals)
+		}
 		return ""
 	}
 	if f.Max > 0 && utf8.RuneCountInString(v) > f.Max {
@@ -486,6 +493,8 @@ func (a *App) act(w http.ResponseWriter, r *http.Request, e *entity, err error, 
 		return
 	case errors.As(err, &ue):
 		a.SetFlash(w, "err", string(ue))
+	case errors.Is(err, store.ErrInvalid):
+		a.SetFlash(w, "err", err.Error())
 	default:
 		a.ServerError(w, r, err)
 		return

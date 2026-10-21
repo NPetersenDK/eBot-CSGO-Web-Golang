@@ -16,7 +16,16 @@ var (
 	ErrServerBusy = errors.New("server is in use")
 	// ErrDuplicate is returned for a unique key violation (username, email).
 	ErrDuplicate = errors.New("already exists")
+	// ErrInvalid marks input the store refuses. The error text is safe to show to the user.
+	ErrInvalid = errors.New("invalid input")
 )
+
+type invalidError string
+
+func (e invalidError) Error() string        { return string(e) }
+func (e invalidError) Is(target error) bool { return target == ErrInvalid }
+
+func invalid(msg string) error { return invalidError(msg) }
 
 // Match statuses, as stored in matchs.status.
 const (

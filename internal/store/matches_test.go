@@ -361,6 +361,10 @@ func TestResetMatch(t *testing.T) {
 	mustExec(t, s, "INSERT INTO maps_score (map_id, type_score, score1_side1, created_at, updated_at) VALUES (?, 'normal', 7, NOW(), NOW())", maps[0].ID)
 	mustExec(t, s, "INSERT INTO round_summary (match_id, map_id, round_id, created_at, updated_at) VALUES (?, ?, 1, NOW(), NOW())", id, maps[0].ID)
 
+	if err := s.ResetMatch(ctx, id); !errors.Is(err, ErrMatchEnabled) {
+		t.Fatalf("reset of a running match: %v", err)
+	}
+	mustExec(t, s, "UPDATE matchs SET enable = 0 WHERE id = ?", id)
 	if err := s.ResetMatch(ctx, id); err != nil {
 		t.Fatal(err)
 	}

@@ -58,7 +58,7 @@ func userEntity(st userStore) *entity {
 			{Name: "username", Label: "Username", Type: "text", Required: true, Max: 128},
 			{Name: "password", Label: "Password", Type: "password", Required: !edit, Max: 128,
 				Help: pwHelp},
-			{Name: "password_again", Label: "Password again", Type: "password", Max: 128,
+			{Name: "password_again", Label: "Password again", Type: "password", Max: 128, ValidateEmpty: true,
 				Validate: func(v string, f url.Values) string {
 					if v != f.Get("password") {
 						return "The two passwords must be the same."

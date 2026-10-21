@@ -513,7 +513,7 @@ func TestCreateAndEditHandlers(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `name="map"`) {
 		t.Fatalf("edit form = %d", rec.Code)
 	}
-	rec = e.do("GET", "/admin/matches/new", "viewer", nil)
+	rec = e.do("GET", "/admin/matches/new", "admin", nil)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `name="max_round"`) {
 		t.Fatalf("new form = %d", rec.Code)
 	}
@@ -654,8 +654,12 @@ func TestMatchAccessControl(t *testing.T) {
 		if rec.Code != http.StatusSeeOther || !strings.HasPrefix(rec.Header().Get("Location"), "/login") {
 			t.Errorf("anonymous GET %s = %d %s", p, rec.Code, rec.Header().Get("Location"))
 		}
-		if rec := e.do("GET", p, auth.RoleViewer, nil); rec.Code != http.StatusOK {
-			t.Errorf("viewer GET %s = %d", p, rec.Code)
+		want := http.StatusOK
+		if strings.HasSuffix(p, "/new") || strings.HasSuffix(p, "/edit") {
+			want = http.StatusForbidden
+		}
+		if rec := e.do("GET", p, auth.RoleViewer, nil); rec.Code != want {
+			t.Errorf("viewer GET %s = %d, want %d", p, rec.Code, want)
 		}
 	}
 

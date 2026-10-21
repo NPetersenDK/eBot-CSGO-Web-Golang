@@ -185,6 +185,8 @@ func storeError(w http.ResponseWriter, err error, notFound string) {
 		writeError(w, http.StatusConflict, "match is running")
 	case errors.Is(err, store.ErrServerBusy):
 		writeError(w, http.StatusConflict, "another match is running on that server")
+	case errors.Is(err, store.ErrInvalid):
+		writeError(w, http.StatusBadRequest, err.Error())
 	default:
 		slog.Error("api store error", "err", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")
