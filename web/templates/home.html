@@ -15,20 +15,20 @@
           <th class="num">Score</th>
           <th>Team B</th>
           <th>Map</th>
-          <th>Status</th>
+          <th class="col-status">Status</th>
           <th></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody data-live-region="rows">
         {{range .Data.Rows}}
         {{with .Match}}
         <tr class="clickable" data-match-id="{{.ID}}">
-          <td>#{{.ID}}</td>
+          <td class="id"><a href="/matches/{{.ID}}">#{{.ID}}</a></td>
           <td>{{if .TeamAFlag}}<span class="muted mono">{{.TeamAFlag}}</span> {{end}}{{.TeamAName}}</td>
           <td class="num"><strong>{{.ScoreA}} - {{.ScoreB}}</strong></td>
           <td>{{if .TeamBFlag}}<span class="muted mono">{{.TeamBFlag}}</span> {{end}}{{.TeamBName}}</td>
           <td>{{if .CurrentMap}}{{mapLabel .CurrentMap.Name}}{{end}}</td>
-          <td><span class="badge {{statusClass .Status}}" data-match-status="{{.ID}}">{{statusLabel .Status}}</span></td>
+          <td class="col-status"><span class="badge {{statusClass .Status}}" data-match-status="{{.ID}}">{{statusLabel .Status}}</span></td>
           <td><a class="btn sm" href="/matches/{{.ID}}">Show</a></td>
         </tr>
         {{end}}

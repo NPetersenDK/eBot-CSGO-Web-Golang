@@ -58,9 +58,11 @@
 {{with .Data}}
 <div data-live="matches" data-live-reload class="stack" data-match-id="{{.Match.ID}}">
   <div class="page-head">
-    <h1>Match #{{.Match.ID}}</h1>
-    <span class="badge {{statusClass .Match.Status}}" data-match-status="{{.Match.ID}}">{{statusLabel .Match.Status}}</span>
-    {{if .Match.IsPaused}}<span class="badge warn">Paused</span>{{end}}
+    <div class="row" data-live-region="title">
+      <h1>Match #{{.Match.ID}}</h1>
+      <span class="badge {{statusClass .Match.Status}}" data-match-status="{{.Match.ID}}">{{statusLabel .Match.Status}}</span>
+      {{if .Match.IsPaused}}<span class="badge warn">Paused</span>{{end}}
+    </div>
     <span class="spacer"></span>
     <span class="badge muted" data-live-state>Live updates: connecting</span>
     <a class="btn sm" href="/matches">Back to matches</a>
@@ -70,7 +72,7 @@
   <div class="flash warn" role="alert">This server was added by hostname. The bot cannot control it, so the buttons and the console will not work. Add the server again as ip:port.</div>
   {{end}}
 
-  <div class="card">
+  <div class="card" data-live-region="board">
     <div class="scoreboard">
       <div class="team">{{if .Match.TeamAFlag}}<span class="muted mono">{{.Match.TeamAFlag}}</span> {{end}}{{.Match.TeamAName}}</div>
       <div class="score">{{.Match.ScoreA}} - {{.Match.ScoreB}}</div>
@@ -79,7 +81,7 @@
   </div>
 
   {{if $.IsAdmin}}
-  <div class="card">
+  <div class="card" data-live-region="controls">
     <h2>Controls</h2>
     {{template "actions" .}}
     <div class="row wrap">
@@ -99,7 +101,7 @@
   </div>
   {{end}}
 
-  <div class="grid2">
+  <div class="grid2" data-live-region="settings">
     <div class="card">
       <h2>Match settings</h2>
       <div class="kv"><span>Configuration file</span><b>{{.Match.Rules}}</b></div>
@@ -123,6 +125,7 @@
     </div>
   </div>
 
+  <div class="stack" data-live-region="maps">
   {{range .Maps}}
   <div class="card">
     <div class="page-head">
@@ -181,6 +184,7 @@
   {{else}}
   <div class="card muted">No maps.</div>
   {{end}}
+  </div>
 
   {{if $.IsAdmin}}
   <div class="card" id="console">

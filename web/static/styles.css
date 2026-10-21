@@ -269,3 +269,10 @@ form:has(input[name="auto_start"]:checked) .autostart-field { display: flex; }
 .status-pill.err { color: var(--err); border-color: var(--err); }
 .status-menu .dropdown-menu { min-width: 240px; }
 .status-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+
+/* Keep list cells stable when a status text changes. */
+.badge { white-space: nowrap; }
+.table td.num, .table td.id { white-space: nowrap; }
+.table .col-status { min-width: 150px; }
+.table td.id a { font-weight: 600; }
+.table td .actions { flex-wrap: wrap; min-width: 220px; max-width: 460px; }

@@ -1,5 +1,4 @@
-{{define "actions"}}
-<div class="actions">
+{{define "action-buttons"}}
   {{range .Actions}}
   {{if .Command}}
   <button type="button" class="btn sm {{.Style}}" data-command="{{.Command}}"{{if eq .Command "streamerready"}} data-streamer-ready="{{$.Match.ID}}"{{end}} data-match="{{$.Match.ID}}"{{if .Confirm}} data-confirm="Are you sure?"{{end}}{{if .Disabled}} disabled{{end}}>{{.Label}}</button>
@@ -14,7 +13,6 @@
   <form method="post" action="{{.Path}}"><button class="btn sm {{.Style}}" type="submit">{{.Label}}</button></form>
   {{end}}
   {{end}}
-</div>
 {{end}}
 {{define "content"}}
 <div data-live="matches" data-live-reload>
@@ -63,28 +61,28 @@
           <th>Map</th>
           {{if .IsAdmin}}<th>Server</th>{{end}}
           <th>Active</th>
-          <th>Status</th>
+          <th class="col-status">Status</th>
           <th></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody data-live-region="rows">
         {{range .Data.Rows}}
         <tr class="clickable" data-match-id="{{.Match.ID}}">
           {{with .Match}}
-          <td>#{{.ID}}</td>
+          <td class="id"><a href="/matches/{{.ID}}">#{{.ID}}</a></td>
           <td>{{if .TeamAFlag}}<span class="muted mono">{{.TeamAFlag}}</span> {{end}}{{.TeamAName}}</td>
           <td class="num"><strong>{{.ScoreA}} - {{.ScoreB}}</strong></td>
           <td>{{if .TeamBFlag}}<span class="muted mono">{{.TeamBFlag}}</span> {{end}}{{.TeamBName}}</td>
           <td>{{if .CurrentMap}}{{mapLabel .CurrentMap.Name}}{{end}}</td>
           {{if $.IsAdmin}}<td class="mono">{{.IP}}</td>{{end}}
           <td>{{if .Enable}}{{if eq .Status 1}}<span class="badge warn">Starting</span>{{else}}<span class="badge ok">Yes</span>{{end}}{{else}}<span class="badge muted">No</span>{{end}}</td>
-          <td><span class="badge {{statusClass .Status}}" data-match-status="{{.ID}}">{{statusLabel .Status}}</span></td>
+          <td class="col-status"><span class="badge {{statusClass .Status}}" data-match-status="{{.ID}}">{{statusLabel .Status}}</span></td>
           <td>
-            <div class="actions">
-              <a class="btn sm" href="/matches/{{.ID}}">Show</a>
-            </div>
             {{end}}
-            {{if .Actions}}{{template "actions" .}}{{end}}
+            <div class="actions">
+              <a class="btn sm" href="/matches/{{.Match.ID}}">Show</a>
+              {{template "action-buttons" .}}
+            </div>
           </td>
         </tr>
         {{else}}

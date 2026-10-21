@@ -4,11 +4,12 @@
  * Data attributes (all ids are numeric match ids):
  *   [data-live="matches"] or [data-live-matches]
  *       Open EventSource("/live/matches") for the "match" scope.
- *   [data-live-reload]        On the same element: reload the page (at most once
- *                             per 5 seconds) when a button or finished message arrives.
- *   [data-match-status="<id>"]  Text is replaced on "status" messages.
- *   [data-match-id="<id>"]    Gets class "stale" when a "button" message arrives.
- *   [data-streamer-ready="<id>"]  Gets class "disabled" on "streamerReady".
+ *   [data-live-reload]        On the same element: on any match message, fetch the page
+ *                             again (at most once per 2 seconds) and swap the regions.
+ *                             On a single match page, set data-match-id on the element so
+ *                             only that match triggers it.
+ *   [data-live-region="<name>"]  A part of the page that is swapped for its fresh copy.
+ *                             Never put the console or logger inside a region.
  *   [data-console="<id>"]     RCON output. Streams /admin/live/<id>/rcon, one line per
  *                             message, last 500 lines kept.
  *   [data-logger="<id>"]      Game log. Streams /admin/live/<id>/logger, same treatment.
@@ -27,7 +28,7 @@
   "use strict";
 
   const MAX_LINES = 500;
-  const RELOAD_GAP_MS = 5000;
+  const REFRESH_GAP_MS = 2000;
 
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const attr = (id) => CSS.escape(String(id));
@@ -54,49 +55,61 @@
     }
   }
 
-  let lastReload = 0;
-  let reloadTimer = 0;
-  function reloadSoon() {
-    if (reloadTimer) return;
-    const wait = Math.max(0, lastReload + RELOAD_GAP_MS - Date.now());
-    reloadTimer = setTimeout(() => {
-      lastReload = Date.now();
-      location.reload();
+  // Regions ([data-live-region="name"]) are re-rendered in place: the page is
+  // fetched again and each region is swapped for its fresh copy. No reload, so
+  // scroll position, open consoles and typed text stay where they are.
+  let lastRefresh = 0;
+  let refreshTimer = 0;
+  let refreshing = false;
+  function refreshSoon() {
+    if (refreshTimer) return;
+    const wait = Math.max(0, lastRefresh + REFRESH_GAP_MS - Date.now());
+    refreshTimer = setTimeout(async () => {
+      refreshTimer = 0;
+      lastRefresh = Date.now();
+      await refresh();
     }, wait);
+  }
+
+  async function refresh() {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      const res = await fetch(location.href, { credentials: "same-origin", cache: "no-store", headers: { Accept: "text/html" } });
+      if (!res.ok || new URL(res.url).pathname === "/login") return;
+      const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+      for (const el of $$("[data-live-region]")) {
+        const name = el.getAttribute("data-live-region");
+        const fresh = doc.querySelector(`[data-live-region="${CSS.escape(name)}"]`);
+        if (!fresh || fresh.outerHTML === el.outerHTML) continue;
+        if (el.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) continue;
+        const copy = document.importNode(fresh, true);
+        const result = el.querySelector("[data-command-result]");
+        const slot = copy.querySelector("[data-command-result]");
+        if (result && slot) slot.textContent = result.textContent;
+        el.replaceWith(copy);
+      }
+    } catch {
+      // The next message tries again.
+    } finally {
+      refreshing = false;
+    }
   }
 
   function initMatches() {
     const root = document.querySelector('[data-live="matches"], [data-live-matches]');
     if (!root) return;
-    const reload = root.hasAttribute("data-live-reload");
+    const live = root.hasAttribute("data-live-reload");
+    const only = root.getAttribute("data-match-id");
 
     open("/live/matches", {
       match(raw) {
         const m = parse(raw);
         if (!m || m.id == null) return;
-        const id = m.id;
-        switch (m.message) {
-          case "status":
-            if (m.content === "Finished") {
-              markStale(id, reload);
-            } else if (typeof m.content === "string" && !["is_paused", "is_unpaused", "Starting"].includes(m.content)) {
-              for (const el of $$(`[data-match-status="${attr(id)}"]`)) el.textContent = m.content;
-            }
-            break;
-          case "button":
-            markStale(id, reload);
-            break;
-          case "streamerReady":
-            for (const el of $$(`[data-streamer-ready="${attr(id)}"]`)) el.classList.add("disabled");
-            break;
-        }
+        if (only !== null && String(m.id) !== only) return;
+        if (live) refreshSoon();
       },
     });
-  }
-
-  function markStale(id, reload) {
-    for (const el of $$(`[data-match-id="${attr(id)}"]`)) el.classList.add("stale");
-    if (reload) reloadSoon();
   }
 
   function appendLine(box, text) {
