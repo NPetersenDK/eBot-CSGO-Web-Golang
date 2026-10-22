@@ -1,6 +1,6 @@
 module github.com/NPetersenDK/eBot-CSGO-Web-Golang
 
-go 1.26.10
+go 1.27.3
 
 require (
 	github.com/alicebob/miniredis/v2 v2.40.0

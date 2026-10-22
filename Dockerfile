@@ -2,7 +2,7 @@
 
 # The build stage runs on the build host and cross-compiles for the target,
 # so arm64 images do not need QEMU.
-FROM --platform=$BUILDPLATFORM golang:1.26 AS build
+FROM --platform=$BUILDPLATFORM golang:1.27 AS build
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
