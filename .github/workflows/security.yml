@@ -17,13 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Scan with the Go version the Docker image builds with, on its newest patch.
       - name: Go version of the Docker build
         id: gover
         run: echo "v=$(sed -nE 's/^FROM .*golang:([0-9]+\.[0-9]+).*/\1/p' Dockerfile | head -1)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ steps.gover.outputs.v || 'stable' }}
           check-latest: true
