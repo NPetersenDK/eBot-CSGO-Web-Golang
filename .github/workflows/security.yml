@@ -1,0 +1,64 @@
+name: security-scan
+
+# Daily vulnerability scan (Go, npm, Node base image, runtime image). Findings are kept in one
+# open GitHub issue (label security-scan) that updates every day and closes when all is clean.
+# Run it by hand from the Actions tab with "Run workflow".
+on:
+  schedule:
+    - cron: "17 5 * * *" # 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      # Scan with the Go version the Docker image builds with, on its newest patch.
+      - name: Go version of the Docker build
+        id: gover
+        run: echo "v=$(sed -nE 's/^FROM .*golang:([0-9]+\.[0-9]+).*/\1/p' Dockerfile | head -1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.gover.outputs.v || 'stable' }}
+          check-latest: true
+
+      - name: Scan
+        id: scan
+        continue-on-error: true
+        run: bash .github/scripts/security-scan.sh
+
+      - name: Report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+        run: |
+          set -euo pipefail
+          [ -f security-report.md ] && cat security-report.md >> "$GITHUB_STEP_SUMMARY" || true
+          label=security-scan
+          gh label create "$label" --color B60205 --description "Daily security scan" 2>/dev/null || true
+          num=$(gh issue list --label "$label" --state open --json number --jq '.[0].number // empty')
+          stamp="$(date -u '+%Y-%m-%d %H:%M') UTC"
+          if [ "$SCAN_OUTCOME" = "success" ]; then
+            [ -n "$num" ] && gh issue close "$num" --comment "All clean as of $stamp ([run]($RUN_URL))."
+            exit 0
+          fi
+          {
+            echo "Last run: $stamp ([run]($RUN_URL)). This issue is updated daily and closes itself when everything is clean."
+            if [ -s security-report.md ]; then cat security-report.md; else echo; echo "The scan could not run. See the run."; fi
+          } | head -c 60000 > issue-body.md
+          if [ -n "$num" ]; then
+            gh issue edit "$num" --body-file issue-body.md
+          else
+            gh issue create --label "$label" --title "Security scan: findings" --body-file issue-body.md
+          fi
+
+      - name: Fail the run when there are findings
+        if: steps.scan.outcome != 'success'
+        run: exit 1
