@@ -241,8 +241,13 @@
     return { ok: false, error: `HTTP ${res.status}` };
   }
 
+  let resultTimer = 0;
   function showResult(text) {
     for (const el of $$("[data-command-result]")) el.textContent = text;
+    clearTimeout(resultTimer);
+    resultTimer = setTimeout(() => {
+      for (const el of $$("[data-command-result]")) el.textContent = "";
+    }, 5000);
   }
 
   async function run(matchId, action, arg, btn) {

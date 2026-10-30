@@ -194,8 +194,18 @@ h1, h2, h3 { margin: 0; }
 .score { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .scoreboard { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; text-align: center; }
 .scoreboard .team { font-size: 18px; font-weight: 600; }
-.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .actions form { margin: 0; }
+/* A select paired with a small button gets the small size, so the row keeps one height. */
+select:has(+ .btn.sm) { padding: 5px 9px; font-size: 13px; }
+/* Command results float instead of pushing the page down when they appear. */
+[data-command-result] {
+  position: fixed; right: 20px; bottom: 20px; z-index: 60;
+  padding: 10px 14px; border-radius: 8px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+[data-command-result]:empty { display: none; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 14px; }
 .field-error { color: var(--err); font-size: 12px; }
 .hint { color: var(--muted); font-size: 12px; }
@@ -230,15 +240,16 @@ form:has(input[name="auto_start"]:checked) .autostart-field,
   width: 1em; height: 1em; flex: none;
   fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
+/* Same look as the intranet's "Hej <navn>" button (btn primary user-profile-button). */
 .user-profile-button {
   display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
-  padding: 7px 14px; border-radius: 20px;
-  background: linear-gradient(135deg, #5c9ce6 0%, #4a90e2 100%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 9px 14px; border-radius: 20px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
   box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
-  color: #fff; font-weight: 500;
+  color: #fff; font-weight: 400;
 }
-.user-profile-button:hover { background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%); border-color: rgba(255, 255, 255, 0.15); }
+.user-profile-button:hover { background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%); border-color: var(--accent); }
 .user-profile-button .icon { font-size: 16px; }
 .user-profile-button .caret { font-size: 13px; }
 .dropdown-menu { border-color: rgba(74, 144, 226, 0.3); min-width: 220px; }
