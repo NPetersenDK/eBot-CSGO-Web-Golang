@@ -110,7 +110,7 @@ func userEntity(st userStore) *entity {
 				u := &list[i]
 				role := listCell{Text: "No access", Badge: "muted"}
 				if u.IsSuperAdmin {
-					role = listCell{Text: "Super admin", Badge: "accent"}
+					role = listCell{Text: "Super admin", Badge: "info"}
 				}
 				if !u.IsActive {
 					role = listCell{Text: "Inactive", Badge: "err"}

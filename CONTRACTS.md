@@ -51,7 +51,7 @@ The MySQL schema is shared with the PHP app and must not change. The panel creat
 - `.` is `web.View`: `.Title .Brand .Path .User .IsAdmin .Flash .Cfg .Data`. Page data is `.Data`. If the data type has a `Title() string` method, it becomes the page title.
 - Render with `a.Render(w, r, "page", data)` or `a.RenderStatus(w, r, code, "page", data)`. Flash: `a.SetFlash(w, "ok"|"warn"|"err", msg)` then `web.Redirect`.
 - Functions: `statusLabel statusClass isRunning add sub date datetime join deref`. Add more from your own file with `registerFunc("name", fn)` in an `init()`.
-- No external CSS, fonts, scripts or images. Use the classes in `styles.css`: `.card .btn .btn.primary .btn.danger .btn.ghost .btn.sm .table .badge(.ok .warn .err .muted .accent) .grid2 .form-grid .page-head .toolbar .pager .scoreboard .score .actions .console .kv .switch details.advanced .flash`.
+- No external CSS, fonts, scripts or images. Use the classes in `styles.css`: `.card .btn .btn.primary .btn.danger .btn.ghost .btn.sm .table .badge(.ok .warn .err .info .muted) .grid2 .form-grid .page-head .toolbar .pager .scoreboard .score .actions .console .kv .switch details.advanced .flash`.
 - Escaping is automatic. Never use `template.HTML` with data that came from a user, the database or the bot.
 
 ## Routes

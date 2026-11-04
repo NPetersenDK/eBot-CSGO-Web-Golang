@@ -1,99 +1,3 @@
-:root {
-  --bg: #0b0d11;
-  --panel: #14181e;
-  --panel-2: #1b2129;
-  --text: #f5f7fa;
-  --muted: #9aa4b2;
-  --border: #2a323c;
-  --accent: #4c8dff;
-  --ok: #3fb950;
-  --warn: #d29922;
-  --err: #f85149;
-  --danger: #da3633;
-}
-
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-.center { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-.muted { color: var(--muted); }
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.spacer { flex: 1; }
-.grow { flex: 1; }
-.row { display: flex; align-items: center; gap: 12px; }
-.stack { display: flex; flex-direction: column; gap: 20px; }
-
-.topbar {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; row-gap: 6px;
-  padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border);
-}
-.brand { font-weight: 700; color: var(--text); }
-.nav { display: flex; gap: 14px; margin-left: 16px; align-items: center; }
-.nav a { color: #d4dae2; }
-.nav a:hover { color: var(--text); }
-.nav a.active { color: var(--text); font-weight: 600; }
-.topbar .nav a { white-space: nowrap; }
-.content { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
-.center-text { text-align: center; }
-
-/* .app fills the viewport so the footer sits at the bottom even on short pages. */
-.app { min-height: 100vh; display: flex; flex-direction: column; }
-.app .content { width: 100%; flex: 1; }
-.footer {
-  text-align: center; font-size: 12px; padding: 14px 20px;
-  border-top: 1px solid var(--border);
-}
-
-.card {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px;
-}
-.login { width: 360px; }
-.divider { text-align: center; color: var(--muted); margin: 4px 0; }
-
-label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
-label.checkbox { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
-input, select {
-  background: var(--panel-2); color: var(--text);
-  border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font: inherit;
-}
-input:focus, select:focus { outline: none; border-color: var(--accent); }
-
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
-
-.btn {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: 9px 14px; font: inherit; cursor: pointer;
-}
-.btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-.btn.ghost { background: transparent; }
-.btn.ghost.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
-.row.wrap { flex-wrap: wrap; row-gap: 6px; }
-/* Login buttons are anchors: flex centers the icon + label pair. */
-.btn.block { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
-.btn.block:hover { text-decoration: none; }
-.btn.sm { padding: 5px 10px; font-size: 13px; }
-.btn:disabled { opacity: 0.6; cursor: default; }
-
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
-.table th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
-
-.badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
-.badge.ok { color: var(--ok); border-color: var(--ok); }
-.badge.warn { color: var(--warn); border-color: var(--warn); }
-.badge.err { color: var(--err); border-color: var(--err); }
-.badge.muted { color: var(--muted); }
 
 .kv { display: flex; justify-content: space-between; gap: 12px; }
 .kv span { color: var(--muted); }
@@ -112,83 +16,28 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 }
 .quick { display: flex; flex-wrap: wrap; gap: 8px; }
 
-/* Toggle switch: a restyled native checkbox - same semantics, slider look.
-   flex-direction:row is explicit: the base `label` rule sets column, which
-   would otherwise stack the toggle above its text. */
-.switch { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
-.switch input {
-  appearance: none; -webkit-appearance: none; margin: 0; cursor: pointer;
-  width: 34px; height: 20px; border-radius: 999px; background: var(--border);
-  position: relative; transition: background 0.15s ease; flex: none;
-}
-.switch input:checked { background: var(--accent); }
-.switch input::before {
-  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
-  border-radius: 50%; background: #fff; transition: transform 0.15s ease;
-}
-.switch input:checked::before { transform: translateX(14px); }
-
 /* Expandable row details. */
 .btn.expand { padding: 2px 8px; font-size: 11px; }
 .rowdetail td { background: rgba(255, 255, 255, 0.02); }
-.rowdetail-grid { display: flex; flex-wrap: wrap; gap: 6px 24px; font-size: 12.5px; padding: 2px 0 4px; }
-
-/* "Advanced settings" fold on forms. */
-details.advanced summary {
-  cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px;
-  user-select: none;
-}
-details.advanced[open] summary { color: var(--text); }
-
-.error { color: var(--err); font-size: 13px; }
-h1, h2, h3 { margin: 0; }
 
 /* Profile dropdown. A <details> element, so no script is needed. */
-.dropdown { position: relative; }
 .dropdown summary { list-style: none; white-space: nowrap; }
 .dropdown summary::-webkit-details-marker { display: none; }
-.dropdown-menu {
-  position: absolute; right: 0; top: calc(100% + 8px); z-index: 50;
-  min-width: 200px; padding: 6px;
-  background: var(--panel-2); border: 1px solid var(--border);
-  border-radius: 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  display: flex; flex-direction: column;
-}
-.dropdown-header {
-  padding: 6px 10px; font-size: 12px; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
-.dropdown-item {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  padding: 8px 10px; border: none; background: none; cursor: pointer;
-  color: var(--text); font: inherit; text-align: left; border-radius: 6px;
-}
-.dropdown-item:hover { background: var(--panel); text-decoration: none; }
-.dropdown-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; width: auto; }
-
-/* Visible to screen readers only: the spoken alternative for the "-" that
-   marks a value the API did not provide. */
-.sr-only {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
-}
 
 /* Layout helpers shared by all pages. */
 .narrow { max-width: 480px; margin: 0 auto; }
 .page-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .page-head h1 { font-size: 22px; }
-.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
-.toolbar label { min-width: 140px; }
+.filterbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+.filterbar label { min-width: 140px; }
 .flash {
-  padding: 10px 14px; border-radius: 8px; margin-bottom: 16px;
+  padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: inherit;
   background: var(--panel); border: 1px solid var(--border);
 }
 .flash.ok { border-color: var(--ok); color: var(--ok); }
 .flash.warn { border-color: var(--warn); color: var(--warn); }
 .flash.err { border-color: var(--err); color: var(--err); }
 .pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; }
-.table-wrap { overflow-x: auto; }
-.table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .table tr.clickable:hover { background: rgba(255, 255, 255, 0.03); }
 .table.compact th, .table.compact td { padding: 4px 8px; }
 .score { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -209,17 +58,11 @@ select:has(+ .btn.sm) { padding: 5px 9px; font-size: 13px; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 14px; }
 .field-error { color: var(--err); font-size: 12px; }
 .hint { color: var(--muted); font-size: 12px; }
-textarea {
-  background: var(--panel-2); color: var(--text); font: inherit;
-  border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
-}
-textarea:focus { outline: none; border-color: var(--accent); }
-.badge.accent { color: var(--accent); border-color: var(--accent); }
-iframe.log { width: 100%; height: 70vh; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+iframe.log { width: 100%; height: 70vh; border: 1px solid var(--border); border-radius: 8px; background: #fff; max-height: none; padding: 0; }
 
 /* Filter and action rows. .card is a column, so rows must say so. */
-.toolbar { flex-direction: row; }
-.card.toolbar { padding: 14px 20px; }
+.filterbar { flex-direction: row; }
+.card.filterbar { padding: 14px 20px; }
 .actions summary { list-style: none; cursor: pointer; }
 .actions summary::-webkit-details-marker { display: none; }
 
@@ -240,25 +83,16 @@ form:has(input[name="auto_start"]:checked) .autostart-field,
   width: 1em; height: 1em; flex: none;
   fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
-/* Same look as the intranet's "Hej <navn>" button (btn primary user-profile-button). */
-.user-profile-button {
-  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
-  padding: 9px 14px; border-radius: 20px;
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
-  color: #fff; font-weight: 400;
-}
-.user-profile-button:hover { background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%); border-color: var(--accent); }
+/* Colours come from design.css; these are only eBot's icon layout. */
+.user-profile-button { display: inline-flex; align-items: center; gap: 8px; color: #fff; font-weight: 400; }
 .user-profile-button .icon { font-size: 16px; }
 .user-profile-button .caret { font-size: 13px; }
-.dropdown-menu { border-color: rgba(74, 144, 226, 0.3); min-width: 220px; }
+.dropdown-menu { min-width: 220px; }
 .dropdown-header { display: flex; align-items: center; gap: 8px; }
 .dropdown-header .icon { font-size: 14px; }
-.dropdown-item { border: 1px solid transparent; }
+.dropdown-item { width: 100%; border: 1px solid transparent; }
 .dropdown-item .icon { font-size: 15px; }
-.dropdown-item:hover { background: rgba(74, 144, 226, 0.2); }
-.dropdown-item:focus-visible { border-color: #fff; background: rgba(74, 144, 226, 0.2); }
+.dropdown-item:focus-visible { border-color: #fff; background: var(--accent-soft); }
 .dropdown-menu form { margin: 0; }
 
 /* Service status in the top bar. */
@@ -281,7 +115,6 @@ form:has(input[name="auto_start"]:checked) .autostart-field,
 .status-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
 
 /* Keep list cells stable when a status text changes. */
-.badge { white-space: nowrap; }
 .table td.num, .table td.id { white-space: nowrap; }
 .table .col-status { min-width: 150px; }
 .table td.id a { font-weight: 600; }
@@ -325,7 +158,7 @@ table.sortable tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
 .nav-menu summary .caret { font-size: 12px; }
 .nav-menu .dropdown-menu { left: 0; right: auto; min-width: 200px; }
 .nav .dropdown-item { color: var(--text); white-space: nowrap; font-weight: 400; text-decoration: none; }
-.nav .dropdown-item:hover { background: rgba(74, 144, 226, 0.2); color: var(--text); text-decoration: none; }
+.nav .dropdown-item:hover { color: var(--text); text-decoration: none; }
 a.dropdown-item { color: var(--text); text-decoration: none; }
 a.dropdown-item:hover { text-decoration: none; }
 
@@ -344,9 +177,4 @@ a.dropdown-item:hover { text-decoration: none; }
 .confirm-box form { margin: 0; }
 @supports not selector(:popover-open) {
   .confirm-box { display: none; }
-}
-
-.btn:focus-visible, .switch input:focus-visible, .dropdown-item:focus-visible,
-summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px;
 }
