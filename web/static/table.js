@@ -17,6 +17,11 @@
     });
   }
 
+  // Sort icons as inline SVG paths, like the rest of the app (no icon font is loaded).
+  const ICON_SORT = '<path d="M8 9l4-4 4 4M8 15l4 4 4-4"/>';
+  const ICON_UP = '<path d="M12 19V5M5 12l7-7 7 7"/>';
+  const ICON_DOWN = '<path d="M12 5v14M19 12l-7 7-7-7"/>';
+
   const number = (text) => {
     const t = text.trim();
     if (!/^-?\d+([.,]\d+)?%?$/.test(t)) return null;
@@ -96,16 +101,20 @@
         const c = numeric ? number(x) - number(y) : x.localeCompare(y, undefined, { sensitivity: "base" });
         return c * dir;
       });
-      heads.forEach((h, i) => h.setAttribute("aria-sort", i === col ? (dir > 0 ? "ascending" : "descending") : "none"));
+      heads.forEach((h, i) => {
+        h.setAttribute("aria-sort", i === col ? (dir > 0 ? "ascending" : "descending") : "none");
+        h.querySelector("svg").innerHTML = i === col ? (dir > 0 ? ICON_UP : ICON_DOWN) : ICON_SORT;
+      });
       page = 0;
       render();
     };
 
     heads.forEach((h, i) => {
-      h.tabIndex = 0;
-      const toggle = () => sortBy(i, i === sortCol ? -sortDir : (i === 0 ? 1 : -1));
-      h.addEventListener("click", toggle);
-      h.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+      const icon = document.createElement("i");
+      icon.setAttribute("aria-hidden", "true");
+      icon.innerHTML = '<svg class="icon" viewBox="0 0 24 24"></svg>';
+      h.appendChild(icon);
+      h.addEventListener("click", () => sortBy(i, i === sortCol ? -sortDir : (i === 0 ? 1 : -1)));
     });
     if (search) search.addEventListener("input", () => { page = 0; render(); });
     if (sizeSel) sizeSel.addEventListener("change", () => { page = 0; render(); });

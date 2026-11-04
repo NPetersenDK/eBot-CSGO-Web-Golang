@@ -140,10 +140,6 @@ label.inline select, label.inline input { padding: 6px 9px; }
 .table-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .pager-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
 
-table.sortable th { cursor: pointer; user-select: none; white-space: nowrap; }
-table.sortable th:hover { color: var(--text); }
-table.sortable th[aria-sort="ascending"]::after { content: " \25B2"; font-size: 9px; color: var(--accent); }
-table.sortable th[aria-sort="descending"]::after { content: " \25BC"; font-size: 9px; color: var(--accent); }
 table.sortable tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
 table.sortable tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
 
