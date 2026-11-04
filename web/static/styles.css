@@ -150,7 +150,7 @@ table.sortable tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
 /* Navigation dropdowns. */
 .nav-menu summary {
   list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
-  color: #d4dae2; white-space: nowrap;
+  color: var(--nav); white-space: nowrap;
 }
 .nav-menu summary::-webkit-details-marker { display: none; }
 .nav-menu summary:hover { color: var(--text); }
