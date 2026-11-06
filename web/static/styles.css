@@ -1,176 +1,86 @@
+/* eBot only. Everything design.css has a pattern for is used from there (cards, tables,
+   alerts, badges, stats, toasts, logs, modals). This file holds what it has none for. */
 
-.kv { display: flex; justify-content: space-between; gap: 12px; }
-.kv span { color: var(--muted); }
-
-/* Secondary exposed ports on the server detail card - clearly not the main
-   connect address. */
-.otherports { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
-.otherports > span:first-child { text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
-.otherports .mono { padding-left: 12px; }
-
-.console {
-  background: #0a0d11; border: 1px solid var(--border); border-radius: 8px;
-  padding: 8px 10px; height: 480px; overflow: auto; white-space: pre-wrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin: 0;
-  line-height: 1.25; /* terminal-like, not the page's 1.5 */
-}
-.quick { display: flex; flex-wrap: wrap; gap: 8px; }
-
-/* Expandable row details. */
-.btn.expand { padding: 2px 8px; font-size: 11px; }
-.rowdetail td { background: rgba(255, 255, 255, 0.02); }
-
-/* Profile dropdown. A <details> element, so no script is needed. */
-.dropdown summary { list-style: none; white-space: nowrap; }
-.dropdown summary::-webkit-details-marker { display: none; }
-
-/* Layout helpers shared by all pages. */
-.narrow { max-width: 480px; margin: 0 auto; }
-.page-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.page-head h1 { font-size: 22px; }
-.filterbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
-.filterbar label { min-width: 140px; }
-.flash {
-  padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: inherit;
-  background: var(--panel); border: 1px solid var(--border);
-}
-.flash.ok { border-color: var(--ok); color: var(--ok); }
-.flash.warn { border-color: var(--warn); color: var(--warn); }
-.flash.err { border-color: var(--err); color: var(--err); }
-.pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; }
-.table tr.clickable:hover { background: rgba(255, 255, 255, 0.03); }
-.table.compact th, .table.compact td { padding: 4px 8px; }
-.score { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.scoreboard { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; text-align: center; }
-.scoreboard .team { font-size: 18px; font-weight: 600; }
-.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.actions form { margin: 0; }
-/* A select paired with a small button gets the small size, so the row keeps one height. */
-select:has(+ .btn.sm) { padding: 5px 9px; font-size: 13px; }
-/* Command results float instead of pushing the page down when they appear. */
-[data-command-result] {
-  position: fixed; right: 20px; bottom: 20px; z-index: 60;
-  padding: 10px 14px; border-radius: 8px;
-  background: var(--panel-2); border: 1px solid var(--border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-[data-command-result]:empty { display: none; }
-.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 14px; }
-.field-error { color: var(--err); font-size: 12px; }
-.hint { color: var(--muted); font-size: 12px; }
-iframe.log { width: 100%; height: 70vh; border: 1px solid var(--border); border-radius: 8px; background: #fff; max-height: none; padding: 0; }
-
-/* Filter and action rows. .card is a column, so rows must say so. */
-.filterbar { flex-direction: row; }
-.card.filterbar { padding: 14px 20px; }
-.actions summary { list-style: none; cursor: pointer; }
-.actions summary::-webkit-details-marker { display: none; }
-
-/* The live connection pill is empty while connected: take no space then. */
-[data-live-state]:empty { display: none; }
-
-/* Fields that only matter when the autostart switch is on. */
-.autostart-field { display: none; }
-form:has(input[name="auto_start"]:checked) .autostart-field,
-.autostart-field:has(.field-error) { display: flex; }
-
-/* Long text gets the full row. */
-.form-grid > label:has(textarea) { grid-column: 1 / -1; }
-.form-grid textarea { width: 100%; min-height: 160px; resize: vertical; }
-
-/* User menu: a pill that opens a small panel. */
+/* No icon font is loaded, so icons are inline SVG. */
 .icon {
   width: 1em; height: 1em; flex: none;
   fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
-/* Colours come from design.css; these are only eBot's icon layout. */
-.user-profile-button { display: inline-flex; align-items: center; gap: 8px; color: #fff; font-weight: 400; }
+
+/* Label and value on one line. */
+.kv { display: flex; justify-content: space-between; gap: 12px; }
+.kv span { color: var(--muted); }
+
+.btn .icon { vertical-align: -0.125em; margin-right: 6px; }
+.narrow { max-width: 480px; margin: 0 auto; }
+
+/* Menus are <details> elements, so no script is needed. */
+.dropdown summary { list-style: none; cursor: pointer; }
+.dropdown summary::-webkit-details-marker { display: none; }
+.user-profile-button { display: inline-flex; align-items: center; gap: 8px; font-weight: 400; }
 .user-profile-button .icon { font-size: 16px; }
-.user-profile-button .caret { font-size: 13px; }
-.dropdown-menu { min-width: 220px; }
+.caret { font-size: 13px; }
 .dropdown-header { display: flex; align-items: center; gap: 8px; }
 .dropdown-header .icon { font-size: 14px; }
-.dropdown-item { width: 100%; border: 1px solid transparent; }
+.dropdown-item { width: 100%; border: 1px solid transparent; white-space: nowrap; }
 .dropdown-item .icon { font-size: 15px; }
-.dropdown-item:focus-visible { border-color: #fff; background: var(--accent-soft); }
+.dropdown-item:focus-visible { border-color: var(--text); background: var(--accent-soft); }
 .dropdown-menu form { margin: 0; }
-
-/* Service status in the top bar. */
-.dot {
-  width: 10px; height: 10px; border-radius: 50%; flex: none;
-  background: var(--muted); display: inline-block;
-}
-.dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-.dot.err { background: var(--err); box-shadow: 0 0 8px var(--err); }
-.status-menu summary { list-style: none; cursor: pointer; }
-.status-menu summary::-webkit-details-marker { display: none; }
-.status-pill {
-  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
-  padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;
-  background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
-}
-.status-pill.ok { color: var(--ok); border-color: var(--ok); }
-.status-pill.err { color: var(--err); border-color: var(--err); }
 .status-menu .dropdown-menu { min-width: 240px; }
-.status-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+.status-row { padding: 8px 10px; }
 
-/* Keep list cells stable when a status text changes. */
+/* Navigation groups: a <summary> styled like the nav links. */
+.nav-dropdown-toggle { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.nav-dropdown-toggle.active { color: var(--text); font-weight: 600; }
+.nav-menu .dropdown-menu { left: 0; right: auto; }
+
+/* Command results use the design toast; empty means nothing to show. */
+[data-command-result]:empty { display: none; }
+/* The live connection badge is empty while connected: take no space then. */
+[data-live-state]:empty { display: none; }
+
+/* Confirm boxes are popovers (design .modal): a popover is display:none until open. */
+.modal.confirm:not(:popover-open) { display: none; }
+.modal.confirm { margin: auto; width: min(420px, 90vw); }
+.modal.confirm::backdrop { background: rgba(0, 0, 0, 0.55); }
+.modal.confirm h3 { margin: 0; }
+.modal.confirm form { margin: 0; }
+@supports not selector(:popover-open) {
+  .modal.confirm { display: none; }
+}
+
+/* RCON console and match logger: design .log with a fixed height. */
+.log.tall { height: 480px; max-height: none; }
+/* The raw match log is an HTML document with its own white page. */
+iframe.log { width: 100%; height: 70vh; max-height: none; padding: 0; background: #fff; }
+
+/* Rows of buttons and forms. */
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.actions form { margin: 0; }
+.actions summary { list-style: none; cursor: pointer; }
+.actions summary::-webkit-details-marker { display: none; }
+/* A select paired with a small button gets the small size, so the row keeps one height. */
+select:has(+ .btn.sm) { padding: 5px 9px; font-size: 13px; }
+label.inline { flex-direction: row; align-items: center; gap: 8px; }
+label.inline select, label.inline input { padding: 6px 9px; }
+
+/* Tables: keep list cells stable when a status text changes. */
+.table.compact th, .table.compact td { padding: 4px 8px; }
 .table td.num, .table td.id { white-space: nowrap; }
 .table .col-status { min-width: 150px; }
 .table td.id a { font-weight: 600; }
 .table td .actions { flex-wrap: wrap; min-width: 220px; max-width: 460px; }
 
-/* Statistics tables: label column on the left, value after it. */
-.table th.label { width: 260px; text-transform: none; font-size: 14px; color: var(--text); font-weight: 500; }
-.stats-card { max-width: 420px; }
-.stats-card .table th { text-transform: none; font-size: 14px; color: var(--muted); font-weight: 500; }
+/* Scoreboard on the match page. */
+.score { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.scoreboard { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; text-align: center; }
+.scoreboard .team { font-size: 18px; font-weight: 600; }
 
-/* Statistics. */
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-.stat {
-  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;
-}
-.stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
-.stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-
-.table-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-label.inline { flex-direction: row; align-items: center; gap: 8px; color: var(--muted); }
-label.inline select, label.inline input { padding: 6px 9px; }
-.table-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.pager-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
-
-table.sortable tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
-table.sortable tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
-
-/* Navigation dropdowns. */
-.nav-menu summary {
-  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
-  color: var(--nav); white-space: nowrap;
-}
-.nav-menu summary::-webkit-details-marker { display: none; }
-.nav-menu summary:hover { color: var(--text); }
-.nav-menu summary.active { color: var(--text); font-weight: 600; }
-.nav-menu summary .caret { font-size: 12px; }
-.nav-menu .dropdown-menu { left: 0; right: auto; min-width: 200px; }
-.nav .dropdown-item { color: var(--text); white-space: nowrap; font-weight: 400; text-decoration: none; }
-.nav .dropdown-item:hover { color: var(--text); text-decoration: none; }
-a.dropdown-item { color: var(--text); text-decoration: none; }
-a.dropdown-item:hover { text-decoration: none; }
-
-/* Confirm boxes: a popover in the top layer, so opening one never moves the
-   buttons in the row. Browsers without popover support keep it hidden. */
-.confirm-box {
-  margin: auto; padding: 20px; width: min(420px, 90vw);
-  background: var(--panel); color: var(--text);
-  border: 1px solid var(--border); border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-}
-.confirm-box::backdrop { background: rgba(0, 0, 0, 0.55); }
-.confirm-box h3 { margin: 0 0 6px; font-size: 18px; }
-.confirm-box p { margin: 0 0 16px; }
-.confirm-box .row { gap: 8px; }
-.confirm-box form { margin: 0; }
-@supports not selector(:popover-open) {
-  .confirm-box { display: none; }
-}
+/* Forms: fields flow in a grid. */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 14px; }
+.form-grid > label:has(textarea) { grid-column: 1 / -1; }
+.form-grid textarea { width: 100%; min-height: 160px; resize: vertical; }
+/* Fields that only matter when the autostart switch is on. */
+.autostart-field { display: none; }
+form:has(input[name="auto_start"]:checked) .autostart-field,
+.autostart-field:has(.error) { display: flex; }

@@ -1,10 +1,11 @@
 {{define "content"}}
 {{with .Data}}
-<div class="page-head">
-  <h1>Match log #{{.ID}}</h1>
-  <span class="spacer"></span>
-  <a class="btn ghost" href="/matches/{{.ID}}">Back to match</a>
+<div class="stack">
+  <div class="row wrap">
+    <a class="btn ghost" href="/matches/{{.ID}}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to match</a>
+    <h2>Match log #{{.ID}}</h2>
+  </div>
+  <iframe class="log" sandbox src="/admin/matches/{{.ID}}/log/raw" title="Match log"></iframe>
 </div>
-<iframe class="log" sandbox src="/admin/matches/{{.ID}}/log/raw" title="Match log"></iframe>
 {{end}}
 {{end}}

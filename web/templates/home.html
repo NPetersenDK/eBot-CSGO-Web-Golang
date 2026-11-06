@@ -1,8 +1,8 @@
 {{define "content"}}
 <div class="stack" data-live="matches" data-live-reload data-page="1">
   <div class="card">
-    <div class="page-head">
-      <h2>Current matches</h2>
+    <div class="row wrap">
+      <h3>Current matches</h3>
       <span class="spacer"></span>
       <span class="badge muted" data-live-state>Live updates: connecting</span>
       <a class="btn sm" href="/matches">All matches</a>
@@ -42,8 +42,8 @@
   </div>
   {{if .Data.Players}}
   <div class="card">
-    <div class="page-head">
-      <h2>Top players</h2>
+    <div class="row wrap">
+      <h3>Top players</h3>
       <span class="spacer"></span>
       <span class="muted">By kills, all matches</span>
     </div>

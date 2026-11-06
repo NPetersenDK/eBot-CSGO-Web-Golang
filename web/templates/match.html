@@ -15,7 +15,7 @@
   </form>
   {{else if .Confirm}}
   <button type="button" class="btn sm {{.Style}}" popovertarget="confirm{{.Path}}">{{.Label}}</button>
-  <div id="confirm{{.Path}}" popover class="confirm-box">
+  <div id="confirm{{.Path}}" popover class="modal wide confirm">
     <h3>{{.Label}}?</h3>
     <p class="muted">This is done for match #{{$.Match.ID}}.</p>
     <div class="row">
@@ -62,19 +62,19 @@
 {{define "content"}}
 {{with .Data}}
 <div data-live="matches" data-live-reload class="stack" data-match-id="{{.Match.ID}}">
-  <div class="page-head">
+  <div class="row wrap">
+    <a class="btn ghost" href="/matches"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to matches</a>
     <div class="row" data-live-region="title">
-      <h1>Match #{{.Match.ID}}</h1>
+      <h2>Match #{{.Match.ID}}</h2>
       <span class="badge {{statusClass .Match.Status}}" data-match-status="{{.Match.ID}}">{{statusLabel .Match.Status}}</span>
       {{if .Match.IsPaused}}<span class="badge warn">Paused</span>{{end}}
     </div>
     <span class="spacer"></span>
     <span class="badge muted" data-live-state>Live updates: connecting</span>
-    <a class="btn sm" href="/matches">Back to matches</a>
   </div>
 
   {{if .ShowHostWarn}}
-  <div class="flash warn" role="alert">This server was added by hostname. The bot cannot control it, so the buttons and the console will not work. Add the server again as ip:port.</div>
+  <div class="alert warn" role="alert">This server was added by hostname. The bot cannot control it, so the buttons and the console will not work. Add the server again as ip:port.</div>
   {{end}}
 
   <div class="card" data-live-region="board">
@@ -87,7 +87,7 @@
 
   {{if $.IsAdmin}}
   <div class="card" data-live-region="controls">
-    <h2>Controls</h2>
+    <h3>Controls</h3>
     {{template "actions" .}}
     <div class="row wrap">
       {{if .ShowEditLink}}<a class="btn sm" href="/admin/matches/{{.Match.ID}}/edit">Edit match</a>{{end}}
@@ -107,7 +107,7 @@
 
   <div class="grid2" data-live-region="settings">
     <div class="card">
-      <h2>Match settings</h2>
+      <h3>Match settings</h3>
       <div class="kv"><span>Configuration file</span><b>{{.Match.Rules}}</b></div>
       <div class="kv"><span>Max rounds</span><b>MR{{.Match.MaxRound}}</b></div>
       {{if $.IsAdmin}}<div class="kv"><span>Password</span><b class="mono">{{.Match.ConfigPassword}}</b></div>{{end}}
@@ -121,7 +121,7 @@
       <div class="kv"><span>Switch sides automatically</span><b>{{if .Match.ConfigSwitchAuto}}Yes{{else}}No{{end}}</b></div>
     </div>
     <div class="card">
-      <h2>Match details</h2>
+      <h3>Match details</h3>
       <div class="kv"><span>Score</span><b>{{.Match.TeamAName}} ({{.Match.ScoreA}}) - ({{.Match.ScoreB}}) {{.Match.TeamBName}}</b></div>
       <div class="kv"><span>Played rounds</span><b>{{.PlayedRounds}}</b></div>
       <div class="kv"><span>Game server</span><b class="mono">{{if .ServerAddr}}{{.ServerAddr}}{{else}}-{{end}}</b></div>
@@ -132,8 +132,8 @@
   <div class="stack" data-live-region="maps">
   {{range .Maps}}
   <div class="card">
-    <div class="page-head">
-      <h2>{{mapLabel .Map.Name}}</h2>
+    <div class="row wrap">
+      <h3>{{mapLabel .Map.Name}}</h3>
       {{if and .Current (gt (len $.Data.Maps) 1) (lt $.Data.Match.Status 13)}}<span class="badge info">Current map</span>{{end}}
       <span class="badge muted">{{statusLabel .Map.Status}}</span>
       <span class="spacer"></span>
@@ -193,8 +193,8 @@
 
   {{if $.IsAdmin}}
   <div class="card" id="console">
-    <h2>RCON console</h2>
-    <pre class="console" data-console="{{.Match.ID}}"></pre>
+    <h3>RCON console</h3>
+    <pre class="log tall" data-console="{{.Match.ID}}"></pre>
     <form class="row" method="post" action="/admin/matches/{{.Match.ID}}/command" data-rcon-form="{{.Match.ID}}">
       <input type="hidden" name="action" value="executeCommand">
       <input class="grow" name="arg" autocomplete="off" maxlength="500" placeholder="RCON command" aria-label="RCON command">
@@ -202,8 +202,8 @@
     </form>
   </div>
   <div class="card">
-    <h2>Logger</h2>
-    <pre class="console" data-logger="{{.Match.ID}}"></pre>
+    <h3>Logger</h3>
+    <pre class="log tall" data-logger="{{.Match.ID}}"></pre>
   </div>
   {{end}}
 </div>

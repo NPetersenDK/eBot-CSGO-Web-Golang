@@ -1,18 +1,16 @@
 {{define "content"}}
 {{with .Data}}
-<div class="page-head">
-  <h1>{{.Name}}</h1>
-  <span class="spacer"></span>
-  <a class="btn sm" href="/stats">All statistics</a>
-</div>
-
 <div class="stack">
+  <div class="row wrap">
+    <a class="btn ghost" href="/stats"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to statistics</a>
+    <h2>{{.Name}}</h2>
+  </div>
   {{if .Aliases}}<p class="muted">Also played as: {{join .Aliases ", "}}</p>{{end}}
   <p class="muted">
     {{if .Filtered}}Totals for {{.Chosen}} of {{.Total}} maps.{{else}}Totals for all {{.Total}} maps.{{end}}
   </p>
 
-  <div class="stat-grid">
+  <div class="row wrap statrow">
     <div class="stat"><div class="stat-value">{{.Totals.Kills}}</div><div class="stat-label">Kills</div></div>
     <div class="stat"><div class="stat-value">{{.Totals.Assists}}</div><div class="stat-label">Assists</div></div>
     <div class="stat"><div class="stat-value">{{.Totals.Deaths}}</div><div class="stat-label">Deaths</div></div>
@@ -29,14 +27,14 @@
 
   <div class="grid2">
     <div class="card">
-      <h2>Clutches won</h2>
+      <h3>Clutches won</h3>
       <table class="table compact">
         <thead><tr><th>1v1</th><th>1v2</th><th>1v3</th><th>1v4</th><th>1v5</th></tr></thead>
         <tbody><tr>{{range .Totals.Clutch}}<td>{{.}}</td>{{end}}</tr></tbody>
       </table>
     </div>
     <div class="card">
-      <h2>Kills per round</h2>
+      <h3>Kills per round</h3>
       <table class="table compact">
         <thead><tr><th>1 kill</th><th>2 kills</th><th>3 kills</th><th>4 kills</th><th>5 kills</th></tr></thead>
         <tbody><tr>{{range .Totals.MultiKills}}<td>{{.}}</td>{{end}}</tr></tbody>
@@ -45,15 +43,15 @@
   </div>
 
   <form class="card" method="get" action="/stats/players/{{.SteamID}}">
-    <div class="page-head">
-      <h2>Matches</h2>
+    <div class="row wrap">
+      <h3>Matches</h3>
       <span class="spacer"></span>
       <button type="button" class="btn sm" data-check="all">Select all</button>
       <button type="button" class="btn sm" data-check="none">Clear</button>
       <button type="submit" class="btn sm primary">Show selected</button>
       {{if .Filtered}}<a class="btn sm ghost" href="/stats/players/{{.SteamID}}">Show all</a>{{end}}
     </div>
-    <p class="hint">Pick maps and press "Show selected" to see the totals for only those.</p>
+    <p class="muted small">Pick maps and press "Show selected" to see the totals for only those.</p>
     <div class="table-wrap">
       <table class="table compact">
         <thead>

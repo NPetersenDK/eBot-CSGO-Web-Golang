@@ -45,7 +45,7 @@ func TestNavigation(t *testing.T) {
 	if !strings.Contains(menu, `href="/admin/users"`) || strings.Index(menu, `href="/admin/users"`) > strings.Index(menu, "Log out") {
 		t.Error("Users must sit in the user menu above Log out")
 	}
-	if !strings.Contains(nav, `summary class="nav-link active"`) {
+	if !strings.Contains(nav, `summary class="nav-dropdown-toggle active"`) {
 		t.Error("the Matches menu must be marked active on /matches")
 	}
 
@@ -82,7 +82,7 @@ func TestNavigationMarksManagementActive(t *testing.T) {
 		e.app.NotFound(rec, req)
 		nav := navOf(rec.Body.String())
 		i := strings.Index(nav, "Management")
-		if i < 0 || !strings.Contains(nav[:i], `summary class="nav-link active"`) {
+		if i < 0 || !strings.Contains(nav[:i], `summary class="nav-dropdown-toggle active"`) {
 			t.Errorf("Management must be active on %s", path)
 		}
 		if strings.Contains(nav[:strings.Index(nav, "Statistics")], `Matches <svg`) && strings.Contains(nav[:strings.Index(nav, "Matches <svg")], "active") {
@@ -95,7 +95,7 @@ func TestConfirmBoxesDoNotSitInTheRow(t *testing.T) {
 	e := newMatchTestEnv(t)
 	for _, path := range []string{"/matches", "/matches/6"} {
 		body := e.do("GET", path, "admin", nil).Body.String()
-		if !strings.Contains(body, `popover class="confirm-box"`) {
+		if !strings.Contains(body, `popover class="modal wide confirm"`) {
 			t.Errorf("%s has no confirm box", path)
 		}
 		if strings.Contains(body, "Confirm: ") {
@@ -107,7 +107,7 @@ func TestConfirmBoxesDoNotSitInTheRow(t *testing.T) {
 				t.Errorf("%s: popovertarget %q has no box", path, id)
 			}
 		}
-		if n, c := strings.Count(body, `class="confirm-box"`), strings.Count(body, `popovertargetaction="hide"`); n != c {
+		if n, c := strings.Count(body, `class="modal wide confirm"`), strings.Count(body, `popovertargetaction="hide"`); n != c {
 			t.Errorf("%s: %d boxes but %d cancel buttons", path, n, c)
 		}
 	}

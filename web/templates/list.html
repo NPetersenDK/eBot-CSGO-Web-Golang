@@ -1,11 +1,12 @@
 {{define "content"}}
 {{with .Data}}
-<div class="page-head">
-  <h1>{{.Heading}}</h1>
+<div class="stack">
+<div class="row wrap">
+  <h2>{{.Heading}}</h2>
   <span class="spacer"></span>
   {{if $.IsAdmin}}<a class="btn primary" href="/admin/{{.Slug}}/new">{{.NewLabel}}</a>{{end}}
 </div>
-{{if .Note}}<p class="hint">{{.Note}}</p>{{end}}
+{{if .Note}}<p class="note">{{.Note}}</p>{{end}}
 <div class="card table-wrap">
   <table class="table">
     <thead>
@@ -35,7 +36,7 @@
             <a class="btn sm" href="/admin/{{$slug}}/{{.ID}}/edit">Edit</a>
             {{if .CanDelete}}
             <button type="button" class="btn sm ghost danger" popovertarget="delete-{{$slug}}-{{.ID}}">Delete</button>
-            <div id="delete-{{$slug}}-{{.ID}}" popover class="confirm-box">
+            <div id="delete-{{$slug}}-{{.ID}}" popover class="modal wide confirm">
               <h3>Delete?</h3>
               <p class="muted">{{.DeleteText}}</p>
               <div class="row">
@@ -53,6 +54,7 @@
       {{end}}
     </tbody>
   </table>
+</div>
 </div>
 {{end}}
 {{end}}

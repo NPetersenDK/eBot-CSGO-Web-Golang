@@ -923,7 +923,7 @@ func TestGlobalStatsPages(t *testing.T) {
 		t.Fatalf("stats = %d", rec.Code)
 	}
 	body = rec.Body.String()
-	for _, want := range []string{"Global player statistics", "alice", "Entry kill", "stat-grid", "Headshot rate", "25.0%", "/static/table.js"} {
+	for _, want := range []string{"Global player statistics", "alice", "Entry kill", "statrow", "Headshot rate", "25.0%", "/static/table.js"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("stats page missing %q", want)
 		}
@@ -1049,8 +1049,8 @@ func TestHomeLayout(t *testing.T) {
 
 	for _, want := range []string{
 		`class="stack" data-live="matches"`,
-		"<h2>Current matches</h2>",
-		"<h2>Top players</h2>",
+		"<h3>Current matches</h3>",
+		"<h3>Top players</h3>",
 		"<th class=\"num\">Matches</th><th class=\"num\">Kills/match</th>",
 		"data-live-state",
 	} {

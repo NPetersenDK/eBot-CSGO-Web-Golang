@@ -6,7 +6,7 @@
   <a class="btn sm {{.Style}}" href="{{.Href}}">{{.Label}}</a>
   {{else if .Confirm}}
   <button type="button" class="btn sm {{.Style}}" popovertarget="confirm{{.Path}}">{{.Label}}</button>
-  <div id="confirm{{.Path}}" popover class="confirm-box">
+  <div id="confirm{{.Path}}" popover class="modal wide confirm">
     <h3>{{.Label}}?</h3>
     <p class="muted">This is done for match #{{$.Match.ID}}.</p>
     <div class="row">
@@ -20,16 +20,16 @@
   {{end}}
 {{end}}
 {{define "content"}}
-<div data-live="matches" data-live-reload data-page="{{.Data.Page.Page}}">
-  <div class="page-head">
-    <h1>{{if .Data.Archived}}Archived matches{{else}}Matches{{end}}</h1>
+<div class="stack" data-live="matches" data-live-reload data-page="{{.Data.Page.Page}}">
+  <div class="row wrap">
+    <h2>{{if .Data.Archived}}Archived matches{{else}}Matches{{end}}</h2>
     <span class="spacer"></span>
     <span class="badge muted" data-live-state>Live updates: connecting</span>
     {{if .IsAdmin}}<a class="btn sm primary" href="/admin/matches/new">New match</a>{{end}}
   </div>
 
-  <div class="stack">
-  <form class="card filterbar" method="get" action="/matches">
+  <form class="card" method="get" action="/matches">
+   <div class="row wrap">
     <label>Status
       <select name="status">
         <option value="current"{{if not .Data.Archived}} selected{{end}}>Current</option>
@@ -53,6 +53,7 @@
     </label>
     <button class="btn primary" type="submit">Search</button>
     {{if or .Data.Season .Data.Team .Data.Query}}<a class="btn ghost" href="/matches{{if .Data.Archived}}?status=archived{{end}}">Reset filter</a>{{end}}
+   </div>
   </form>
 
   <div class="card table-wrap">
@@ -96,12 +97,13 @@
       </tbody>
     </table>
   </div>
-  </div>
 
-  <div class="pager">
+  <div class="row">
+    <span class="spacer"></span>
     {{if .Data.PrevURL}}<a class="btn sm" href="{{.Data.PrevURL}}">Previous</a>{{end}}
     <span class="muted">Page {{.Data.Page.Page}} of {{.Data.Page.Pages}}</span>
     {{if .Data.NextURL}}<a class="btn sm" href="{{.Data.NextURL}}">Next</a>{{end}}
+    <span class="spacer"></span>
   </div>
 </div>
 {{end}}

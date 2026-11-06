@@ -20,7 +20,7 @@
  *   [data-command="<action>"][data-match="<id>"]
  *                             Button that posts the action to /admin/matches/<id>/command.
  *                             Optional data-arg is sent as "arg". data-confirm="text"
- *                             asks confirm() first.
+ *                             asks in a modal first.
  *   [data-command-result]     Receives the result text of the last command.
  *   [data-live-state]         Shows "reconnecting" while an EventSource is in error and
  *                             "Session expired, reload" once it has been closed.
@@ -87,7 +87,8 @@
 
   function hasOpenPopover(el) {
     try {
-      return el.matches(":popover-open") || el.querySelector(":popover-open") !== null;
+      return el.matches(":popover-open") || el.querySelector(":popover-open") !== null ||
+        document.querySelector("dialog[open]") !== null;
     } catch {
       return false;
     }
@@ -267,15 +268,40 @@
     }
   }
 
+  // Asks in a design modal instead of the browser's confirm(). Resolves true on "Yes",
+  // false on Cancel or Escape.
+  function askConfirm(text) {
+    return new Promise((resolve) => {
+      let dlg = document.getElementById("confirm-dialog");
+      if (!dlg) {
+        dlg = document.createElement("dialog");
+        dlg.id = "confirm-dialog";
+        dlg.className = "modal wide";
+        dlg.innerHTML = '<h3>Are you sure?</h3><p class="muted"></p>' +
+          '<form method="dialog" class="row"><button class="btn primary" value="yes">Yes</button>' +
+          '<button class="btn ghost" value="no">Cancel</button></form>';
+        document.body.appendChild(dlg);
+      }
+      dlg.querySelector("p").textContent = text;
+      dlg.returnValue = "";
+      dlg.addEventListener("close", () => resolve(dlg.returnValue === "yes"), { once: true });
+      dlg.showModal();
+    });
+  }
+
   function initCommands() {
-    document.addEventListener("click", (ev) => {
+    document.addEventListener("click", async (ev) => {
       const btn = ev.target instanceof Element ? ev.target.closest("[data-command][data-match]") : null;
       if (!btn) return;
       ev.preventDefault();
+      // Read the attributes first: a live refresh can replace the button while the box is open.
       const msg = btn.getAttribute("data-confirm");
-      if (msg !== null && !confirm(msg || "Are you sure?")) return;
+      const id = btn.getAttribute("data-match");
+      const command = btn.getAttribute("data-command");
+      const arg = btn.getAttribute("data-arg") || "";
+      if (msg !== null && !(await askConfirm(msg || "Are you sure?"))) return;
       if (btn.disabled) return;
-      run(btn.getAttribute("data-match"), btn.getAttribute("data-command"), btn.getAttribute("data-arg") || "", btn);
+      run(id, command, arg, btn);
     });
 
     for (const form of $$("[data-rcon-form]")) {

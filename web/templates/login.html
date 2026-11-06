@@ -1,7 +1,7 @@
 {{define "content"}}
 {{with .Data}}
 <div class="card narrow">
-  <h1>Log in</h1>
+  <h2>Log in</h2>
   {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
   {{if .LocalLogin}}
   <form method="post" action="/login" class="stack">

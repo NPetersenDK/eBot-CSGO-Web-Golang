@@ -1,13 +1,13 @@
 {{define "content"}}
 {{with .Data}}
-<div class="page-head">
-  <h1>{{.Heading}}</h1>
-  <span class="spacer"></span>
-  <a class="btn sm" href="{{if .Editing}}/matches/{{.MatchID}}{{else}}/matches{{end}}">Back</a>
+<div class="stack">
+<div class="row wrap">
+  <a class="btn ghost" href="{{if .Editing}}/matches/{{.MatchID}}{{else}}/matches{{end}}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to {{if .Editing}}match{{else}}matches{{end}}</a>
+  <h2>{{.Heading}}</h2>
 </div>
 
-{{if .Error}}<div class="flash err" role="alert">{{.Error}}</div>{{end}}
-{{if and $.User (not $.IsAdmin)}}<div class="flash warn">You can look at this form, but only admins can save it.</div>{{end}}
+{{if .Error}}<div class="alert err" role="alert">{{.Error}}</div>{{end}}
+{{if and $.User (not $.IsAdmin)}}<div class="alert warn">You can look at this form, but only admins can save it.</div>{{end}}
 
 <form class="card" method="post" action="{{.Action}}">
   {{if .Editing}}
@@ -20,7 +20,7 @@
         <option value=""></option>
         {{range .Seasons}}{{if or .Active (eq (printf "%d" .ID) $.Data.Form.SeasonID)}}<option value="{{.ID}}"{{if eq (printf "%d" .ID) $.Data.Form.SeasonID}} selected{{end}}>{{.Name}}</option>{{end}}{{end}}
       </select>
-      {{with index $.Data.Errors "season_id"}}<span class="field-error">{{.}}</span>{{end}}
+      {{with index $.Data.Errors "season_id"}}<span class="error">{{.}}</span>{{end}}
     </label>
   </div>
 
@@ -31,15 +31,15 @@
           <option value=""></option>
           {{range .Teams}}<option value="{{.ID}}"{{if eq (printf "%d" .ID) $.Data.Form.TeamA}} selected{{end}}>{{.Name}}{{if .Flag}} ({{.Flag}}){{end}}</option>{{end}}
         </select>
-        {{with index $.Data.Errors "team_a"}}<span class="field-error">{{.}}</span>{{end}}
+        {{with index $.Data.Errors "team_a"}}<span class="error">{{.}}</span>{{end}}
       </label>
       <label>Team A name (when no team is chosen)
         <input name="team_a_name" value="{{.Form.TeamAName}}" maxlength="255" placeholder="Team name">
-        {{with index $.Data.Errors "team_a_name"}}<span class="field-error">{{.}}</span>{{end}}
+        {{with index $.Data.Errors "team_a_name"}}<span class="error">{{.}}</span>{{end}}
       </label>
       <label>Team A flag
         <input name="team_a_flag" value="{{.Form.TeamAFlag}}" maxlength="8" placeholder="DK">
-        {{with index $.Data.Errors "team_a_flag"}}<span class="field-error">{{.}}</span>{{end}}
+        {{with index $.Data.Errors "team_a_flag"}}<span class="error">{{.}}</span>{{end}}
       </label>
     </div>
     <div class="stack">
@@ -48,15 +48,15 @@
           <option value=""></option>
           {{range .Teams}}<option value="{{.ID}}"{{if eq (printf "%d" .ID) $.Data.Form.TeamB}} selected{{end}}>{{.Name}}{{if .Flag}} ({{.Flag}}){{end}}</option>{{end}}
         </select>
-        {{with index $.Data.Errors "team_b"}}<span class="field-error">{{.}}</span>{{end}}
+        {{with index $.Data.Errors "team_b"}}<span class="error">{{.}}</span>{{end}}
       </label>
       <label>Team B name (when no team is chosen)
         <input name="team_b_name" value="{{.Form.TeamBName}}" maxlength="255" placeholder="Team name">
-        {{with index $.Data.Errors "team_b_name"}}<span class="field-error">{{.}}</span>{{end}}
+        {{with index $.Data.Errors "team_b_name"}}<span class="error">{{.}}</span>{{end}}
       </label>
       <label>Team B flag
         <input name="team_b_flag" value="{{.Form.TeamBFlag}}" maxlength="8" placeholder="DK">
-        {{with index $.Data.Errors "team_b_flag"}}<span class="field-error">{{.}}</span>{{end}}
+        {{with index $.Data.Errors "team_b_flag"}}<span class="error">{{.}}</span>{{end}}
       </label>
     </div>
   </div>
@@ -67,18 +67,18 @@
       <datalist id="rules-list">
         {{range .RulesChoices}}<option value="{{.}}">{{end}}
       </datalist>
-      <span class="hint">The name of the .cfg file without the extension (esl5on5.cfg is esl5on5).</span>
-      {{with index $.Data.Errors "rules"}}<span class="field-error">{{.}}</span>{{end}}
+      <span class="muted small">The name of the .cfg file without the extension (esl5on5.cfg is esl5on5).</span>
+      {{with index $.Data.Errors "rules"}}<span class="error">{{.}}</span>{{end}}
     </label>
     <label>Password
       <input name="config_password" value="{{.Form.Password}}" maxlength="100" autocomplete="off">
-      {{with index $.Data.Errors "config_password"}}<span class="field-error">{{.}}</span>{{end}}
+      {{with index $.Data.Errors "config_password"}}<span class="error">{{.}}</span>{{end}}
     </label>
     <label>Max rounds (MR)
       <select name="max_round">
         {{range .RoundChoices}}<option value="{{.Value}}"{{if eq .Value $.Data.Form.MaxRound}} selected{{end}}>{{.Label}}</option>{{end}}
       </select>
-      {{with index $.Data.Errors "max_round"}}<span class="field-error">{{.}}</span>{{end}}
+      {{with index $.Data.Errors "max_round"}}<span class="error">{{.}}</span>{{end}}
     </label>
   </div>
 
@@ -93,24 +93,24 @@
   <div class="form-grid">
     <label>Overtime: start money
       <input name="overtime_startmoney" inputmode="numeric" value="{{.Form.OTMoney}}">
-      {{with index $.Data.Errors "overtime_startmoney"}}<span class="field-error">{{.}}</span>{{end}}
+      {{with index $.Data.Errors "overtime_startmoney"}}<span class="error">{{.}}</span>{{end}}
     </label>
     <label>Overtime: max rounds
       <select name="overtime_max_round">
         {{range .OTRoundChoice}}<option value="{{.Value}}"{{if eq .Value $.Data.Form.OTMaxRound}} selected{{end}}>{{.Label}}</option>{{end}}
       </select>
-      {{with index $.Data.Errors "overtime_max_round"}}<span class="field-error">{{.}}</span>{{end}}
+      {{with index $.Data.Errors "overtime_max_round"}}<span class="error">{{.}}</span>{{end}}
     </label>
     <label class="autostart-field">Start date
       <input name="startdate" value="{{.Form.StartDate}}" placeholder="dd.mm.yyyy hh:mm">
-      <span class="hint">Used when autostart is on. Format dd.mm.yyyy hh:mm.</span>
-      {{with index $.Data.Errors "startdate"}}<span class="field-error">{{.}}</span>{{end}}
+      <span class="muted small">Used when autostart is on. Format dd.mm.yyyy hh:mm.</span>
+      {{with index $.Data.Errors "startdate"}}<span class="error">{{.}}</span>{{end}}
     </label>
     <label class="autostart-field">Start match
       <select name="auto_start_time">
         {{range .AutoStartOpts}}<option value="{{.Value}}"{{if eq .Value $.Data.Form.AutoStartTime}} selected{{end}}>{{.Label}}</option>{{end}}
       </select>
-      {{with index $.Data.Errors "auto_start_time"}}<span class="field-error">{{.}}</span>{{end}}
+      {{with index $.Data.Errors "auto_start_time"}}<span class="error">{{.}}</span>{{end}}
     </label>
   </div>
 
@@ -119,15 +119,15 @@
       <select name="map_selection_mode">
         {{range .Modes}}<option value="{{.Value}}"{{if eq .Value $.Data.Form.Mode}} selected{{end}}>{{.Label}}</option>{{end}}
       </select>
-      <span class="hint">BO1 or BO3.</span>
-      {{with index $.Data.Errors "map_selection_mode"}}<span class="field-error">{{.}}</span>{{end}}
+      <span class="muted small">BO1 or BO3.</span>
+      {{with index $.Data.Errors "map_selection_mode"}}<span class="error">{{.}}</span>{{end}}
     </label>
     <label>Map
       <select name="map">
         {{range .MapChoices}}<option value="{{.}}"{{if eq . $.Data.Form.Map}} selected{{end}}>{{mapLabel .}}</option>{{end}}
       </select>
-      <span class="hint">For BO3 the bot creates the other maps itself.</span>
-      {{with index $.Data.Errors "map"}}<span class="field-error">{{.}}</span>{{end}}
+      <span class="muted small">For BO3 the bot creates the other maps itself.</span>
+      {{with index $.Data.Errors "map"}}<span class="error">{{.}}</span>{{end}}
     </label>
     <label>First side
       <select name="side">
@@ -135,14 +135,14 @@
         <option value="ct"{{if eq $.Data.Form.Side "ct"}} selected{{end}}>Team A CT / Team B T</option>
         <option value="t"{{if eq $.Data.Form.Side "t"}} selected{{end}}>Team A T / Team B CT</option>
       </select>
-      {{with index $.Data.Errors "side"}}<span class="field-error">{{.}}</span>{{end}}
+      {{with index $.Data.Errors "side"}}<span class="error">{{.}}</span>{{end}}
     </label>
     <label>Server
       <select name="server_id">
         <option value="">Choose random server at start</option>
         {{range .Servers}}<option value="{{.ID}}"{{if eq (printf "%d" .ID) $.Data.Form.ServerID}} selected{{end}}>{{if .Hostname}}{{.Hostname}} - {{end}}{{.IP}}{{if .InUse}} (in use){{end}}</option>{{end}}
       </select>
-      {{with index $.Data.Errors "server_id"}}<span class="field-error">{{.}}</span>{{end}}
+      {{with index $.Data.Errors "server_id"}}<span class="error">{{.}}</span>{{end}}
     </label>
   </div>
 
@@ -151,6 +151,7 @@
     {{if .Editing}}<a class="btn ghost" href="/admin/matches/{{.MatchID}}/scores">Edit scores</a>{{end}}
   </div>
 </form>
+</div>
 {{end}}
 {{end}}
 {{define "scripts"}}{{end}}
